@@ -3,7 +3,7 @@
 Bem-vindo(a) ao processo seletivo da 3Pontos Tech. Este desafio avalia **modelagem de dados**, **decisões técnicas registradas** e domínio da nossa stack.
 
 | Item          | Descrição                              |
-|---------------|----------------------------------------|
+| ------------- | -------------------------------------- |
 | **Linguagem** | PHP 8.4                                |
 | **Framework** | Laravel 13 + FilamentPHP 5             |
 | **Banco**     | PostgreSQL via Docker (já configurado) |
@@ -26,30 +26,30 @@ Bem-vindo(a) ao processo seletivo da 3Pontos Tech. Este desafio avalia **modelag
 
 Usados pelos cenários de avaliação. Precisam existir no seu seed.
 
-|                       |                                                        |
-|-----------------------|--------------------------------------------------------|
-| Saldo inicial         | R$ 10.000,00                                           |
-| Fuso horário          | America/Sao_Paulo                                      |
-| Gestora do painel     | `marina@acme.test` · senha `password` (já vem no seed) |
+|                   |                                                        |
+| ----------------- | ------------------------------------------------------ |
+| Saldo inicial     | R$ 10.000,00                                           |
+| Fuso horário      | America/Sao_Paulo                                      |
+| Gestora do painel | `marina@acme.test` · senha `password` (já vem no seed) |
 
-| Cartão | `card_token` | Login do portador   | Regras                                                                  |
-|--------|--------------|---------------------|-------------------------------------------------------------------------|
-| Ana    | `tok_ana`    | `ana@acme.test`     | Limite mensal R$ 2.000,00. Teto R$ 800,00 por compra. MCC 7995 bloqueado |
-| Bruno  | `tok_bruno`  | `bruno@acme.test`   | Limite mensal R$ 500,00                                                 |
-| Carla  | `tok_carla`  | `carla@acme.test`   | Cartão bloqueado pela empresa                                           |
-| Diego  | `tok_diego`  | `diego@acme.test`   | Limite mensal R$ 50.000,00                                              |
+| Cartão | `card_token` | Login do portador | Regras                                                                   |
+| ------ | ------------ | ----------------- | ------------------------------------------------------------------------ |
+| Ana    | `tok_ana`    | `ana@acme.test`   | Limite mensal R$ 2.000,00. Teto R$ 800,00 por compra. MCC 7995 bloqueado |
+| Bruno  | `tok_bruno`  | `bruno@acme.test` | Limite mensal R$ 500,00                                                  |
+| Carla  | `tok_carla`  | `carla@acme.test` | Cartão bloqueado pela empresa                                            |
+| Diego  | `tok_diego`  | `diego@acme.test` | Limite mensal R$ 50.000,00                                               |
 
 Senha de todos os portadores: `password`. Esses usuários são criados pelo **seu** seed.
 
 ### Visão geral das etapas
 
-| Etapa | O que é | Quem usa | Aceite |
-|---|---|---|---|
-| 1 · Authorization | **API**: endpoint chamado pela rede a cada compra | Rede | S1, S2, S3 |
-| 2 · Events | **API**: webhook que a rede chama depois da compra | Rede | S4, S5 |
-| 3 · Transactions e consultas | **Modelo** de ledger + **API** de leitura (available e statement) | Rede e avaliação | Invariante, em todos os cenários |
-| 4 · Painel | **Filament** em `/admin` | Marina, financeiro da Acme | Avaliação manual |
-| 5 · Área do funcionário | **Front** em Livewire, Blade e Tailwind, fora do Filament | Portador do cartão | Avaliação manual + teste de escopo |
+| Etapa                        | O que é                                                           | Quem usa                   | Aceite                             |
+| ---------------------------- | ----------------------------------------------------------------- | -------------------------- | ---------------------------------- |
+| 1 · Authorization            | **API**: endpoint chamado pela rede a cada compra                 | Rede                       | S1, S2, S3                         |
+| 2 · Events                   | **API**: webhook que a rede chama depois da compra                | Rede                       | S4, S5                             |
+| 3 · Transactions e consultas | **Modelo** de ledger + **API** de leitura (available e statement) | Rede e avaliação           | Invariante, em todos os cenários   |
+| 4 · Painel                   | **Filament** em `/admin`                                          | Marina, financeiro da Acme | Avaliação manual                   |
+| 5 · Área do funcionário      | **Front** em Livewire, Blade e Tailwind, fora do Filament         | Portador do cartão         | Avaliação manual + teste de escopo |
 
 As etapas 1 a 3 não têm interface: são a integração com a rede. As etapas 4 e 5 são a interface, lendo o mesmo modelo.
 
@@ -71,13 +71,13 @@ As etapas 1 a 3 não têm interface: são a integração com a rede. As etapas 4
 
 ```json
 {
-  "id": "aut_01J8KQ7Z3N9M2P4R6T8V0W1X2Y",
-  "card_token": "tok_ana",
-  "amount_cents": 12990,
-  "currency": "BRL",
-  "mcc": "5812",
-  "merchant": { "name": "Restaurante Bom Prato", "city": "Porto Alegre", "country": "BR" },
-  "occurred_at": "2026-09-17T14:03:22Z"
+    "id": "aut_01J8KQ7Z3N9M2P4R6T8V0W1X2Y",
+    "card_token": "tok_ana",
+    "amount_cents": 12990,
+    "currency": "BRL",
+    "mcc": "5812",
+    "merchant": { "name": "Restaurante Bom Prato", "city": "Porto Alegre", "country": "BR" },
+    "occurred_at": "2026-09-17T14:03:22Z"
 }
 ```
 
@@ -104,14 +104,14 @@ As etapas 1 a 3 não têm interface: são a integração com a rede. As etapas 4
 
 ```json
 {
-  "id": "evt_01J8KR9B4C7D1E2F3G5H6J8K9L",
-  "type": "capture",
-  "occurred_at": "2026-09-17T18:40:00Z",
-  "authorization_id": "aut_01J8KQ7Z3N9M2P4R6T8V0W1X2Y",
-  "amount_cents": 30000,
-  "currency": "BRL",
-  "sequence": 2,
-  "final": false
+    "id": "evt_01J8KR9B4C7D1E2F3G5H6J8K9L",
+    "type": "capture",
+    "occurred_at": "2026-09-17T18:40:00Z",
+    "authorization_id": "aut_01J8KQ7Z3N9M2P4R6T8V0W1X2Y",
+    "amount_cents": 30000,
+    "currency": "BRL",
+    "sequence": 2,
+    "final": false
 }
 ```
 
@@ -145,15 +145,15 @@ As etapas 1 a 3 não têm interface: são a integração com a rede. As etapas 4
 
     ```json
     {
-      "transactions": [
-        {
-          "occurred_at": "2026-09-17T14:03:22Z",
-          "type": "<identificador seu>",
-          "amount_cents": -12990,
-          "reference": "aut_01J8KQ7Z3N9M2P4R6T8V0W1X2Y",
-          "limit_remaining_after_cents": 187010
-        }
-      ]
+        "transactions": [
+            {
+                "occurred_at": "2026-09-17T14:03:22Z",
+                "type": "<identificador seu>",
+                "amount_cents": -12990,
+                "reference": "aut_01J8KQ7Z3N9M2P4R6T8V0W1X2Y",
+                "limit_remaining_after_cents": 187010
+            }
+        ]
     }
     ```
 
@@ -198,16 +198,16 @@ Fora do Filament. Livewire, Blade e Tailwind escritos por você.
 
 Não há resposta certa. Há resposta **registrada no `MODEL.md` e coerente com o código**. Os cenários não listados testam essa coerência.
 
-| # | Decisão |
-|---|---|
-| 1 | Como representar authorization, capture, cancellation, compra e transaction. Nenhuma entidade, tabela ou estrutura de pastas é imposta |
-| 2 | A reserva de uma authorization aprovada aparece como transaction no statement, ou só a capture? Como aparece uma capture em partes |
-| 3 | Capture acima da tolerância de 20%, ou acima do autorizado em MCC sem tolerância |
-| 4 | Event referenciando `authorization_id` desconhecido |
-| 5 | Capture que chega **antes** da authorization. O statement segue `occurred_at` da rede ou a ordem de chegada |
-| 6 | Capture menor que o autorizado sem `final: true`: o que continua reservado |
-| 7 | Limit remaining, available e saldo recalculados a cada consulta, mantidos como projeção atualizada a cada transaction, ou os dois |
-| 8 | Authorization aprovada num mês e capturada no mês seguinte: conta no limite de qual mês |
+| #   | Decisão                                                                                                                                |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Como representar authorization, capture, cancellation, compra e transaction. Nenhuma entidade, tabela ou estrutura de pastas é imposta |
+| 2   | A reserva de uma authorization aprovada aparece como transaction no statement, ou só a capture? Como aparece uma capture em partes     |
+| 3   | Capture acima da tolerância de 20%, ou acima do autorizado em MCC sem tolerância                                                       |
+| 4   | Event referenciando`authorization_id` desconhecido                                                                                     |
+| 5   | Capture que chega**antes** da authorization. O statement segue `occurred_at` da rede ou a ordem de chegada                             |
+| 6   | Capture menor que o autorizado sem`final: true`: o que continua reservado                                                              |
+| 7   | Limit remaining, available e saldo recalculados a cada consulta, mantidos como projeção atualizada a cada transaction, ou os dois      |
+| 8   | Authorization aprovada num mês e capturada no mês seguinte: conta no limite de qual mês                                                |
 
 Desempate: **na dúvida, aprove e registre o alerta**. Bloquear alguém no caixa é a última opção.
 
@@ -217,13 +217,13 @@ Desempate: **na dúvida, aprove e registre o alerta**. Bloquear alguém no caixa
 
 Só S1 e S3 trazem o resultado esperado. Para S2, S4 e S5, escreva no `MODEL.md`, **antes de implementar**, o resultado que você espera e por quê.
 
-| Cenário | O que a rede faz | Resultado esperado |
-|---|---|---|
-| **S1** | Cinco compras na Ana (129,90 · 45,00 · 300,00 · 80,10 · 15,00), cada uma capturada no valor exato com `final: true` | Ana: `available_cents` 143000, `limit_remaining_cents` 143000. Diego: `available_cents` 943000, `limit_remaining_cents` 5000000. Statement da Ana fecha em 143000 |
-| **S2** | MCC 7995 na Ana · R$ 850,00 na Ana · qualquer valor na Carla · `card_token` inexistente | Você diz |
-| **S3** | Vinte authorizations de R$ 100,00 **simultâneas** no Bruno | Exatamente cinco `approved`. Bruno `available_cents` 0 |
-| **S4** | Authorization de R$ 800,00, MCC 7011, na Ana. Captures de 300,00 · 300,00 · 260,00 (`final: true`) | Você diz |
-| **S5** | Capture chega antes da authorization · um event repetido três vezes · uma authorization reenviada com o mesmo `id` · cancellation depois de uma capture parcial | Você diz |
+| Cenário | O que a rede faz                                                                                                                                               | Resultado esperado                                                                                                                                               |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **S1**  | Cinco compras na Ana (129,90 · 45,00 · 300,00 · 80,10 · 15,00), cada uma capturada no valor exato com`final: true`                                             | Ana:`available_cents` 143000, `limit_remaining_cents` 143000. Diego: `available_cents` 943000, `limit_remaining_cents` 5000000. Statement da Ana fecha em 143000 |
+| **S2**  | MCC 7995 na Ana · R$ 850,00 na Ana · qualquer valor na Carla ·`card_token` inexistente                                                                         | Você diz                                                                                                                                                         |
+| **S3**  | Vinte authorizations de R$ 100,00**simultâneas** no Bruno                                                                                                      | Exatamente cinco`approved`. Bruno `available_cents` 0                                                                                                            |
+| **S4**  | Authorization de R$ 800,00, MCC 7011, na Ana. Captures de 300,00 · 300,00 · 260,00 (`final: true`)                                                             | Você diz                                                                                                                                                         |
+| **S5**  | Capture chega antes da authorization · um event repetido três vezes · uma authorization reenviada com o mesmo`id` · cancellation depois de uma capture parcial | Você diz                                                                                                                                                         |
 
 Em todos os cenários a avaliação confere o invariante da Etapa 3. Existem cenários não listados: eles testam as decisões que você registrou.
 
@@ -254,14 +254,14 @@ Estorno, fechamento do mês, exportação, comprovante, aprovação de despesa, 
 
 ## Avaliação
 
-| Critério | Peso |
-|---|---|
-| Modelagem e decisões registradas | 35 |
-| Integração com a rede: cenários, inclusive os não listados | 20 |
-| Arquitetura e uso da stack | 15 |
-| Testes | 10 |
-| Painel e área do funcionário | 15 |
-| Comunicação: MODEL, README, commits | 5 |
+| Critério                                                   | Peso |
+| ---------------------------------------------------------- | ---- |
+| Modelagem e decisões registradas                           | 35   |
+| Integração com a rede: cenários, inclusive os não listados | 20   |
+| Arquitetura e uso da stack                                 | 15   |
+| Testes                                                     | 10   |
+| Painel e área do funcionário                               | 15   |
+| Comunicação: MODEL, README, commits                        | 5    |
 
 Modelo completo com implementação parcial vale mais que implementação completa com modelo raso. Se o tempo apertar, entregue as etapas na ordem e documente o que ficou de fora.
 
@@ -274,6 +274,28 @@ make env-up        # Postgres, Redis e Mailpit via Docker
 composer setup     # dependências, .env, chave, migrations, seed, assets
 composer dev       # servidor com vários workers, fila, logs e Vite
 ```
+
+## 🐳 Como começar - usando docker PHP (para quem não tem o PHP 8.4 na máquina)
+
+⚠️ OBS: Ajustar os valores no .env quando usar docker:
+
+No .env
+
+`DB_HOST=127.0.0.1` para `DB_HOST=passa-db`
+
+`REDIS_HOST=127.0.0.1` para `REDIS_HOST=passa-redis`
+
+No .env.testing
+
+`DB_HOST=127.0.0.1` para `DB_HOST=passa-db`
+
+```bash
+make env-up        # Postgres, Redis e Mailpit via Docker
+make setup-docker     # dependências, .env, chave, migrations, seed, assets
+make dev-docker       # servidor com vários workers, fila, logs e Vite
+```
+
+---
 
 Painel em `http://127.0.0.1:8000/admin`. A área do funcionário fica em `/login` e `/my-card` depois que você a construir. Testes com `make test`, qualidade com `make check`, o resto em `make help`. Os mesmos alvos existem no `Taskfile.yml`.
 
