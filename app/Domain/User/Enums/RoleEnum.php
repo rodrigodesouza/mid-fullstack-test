@@ -7,5 +7,5 @@ namespace App\Domain\User\Enums;
 enum RoleEnum: string
 {
     case ADMIN = 'admin';
-    case CARD_HOLE = 'card_hole';
+    case CARD_HOLDER = 'card_holder';
 }

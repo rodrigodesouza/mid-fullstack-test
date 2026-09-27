@@ -157,9 +157,20 @@ final readonly class Transaction
 
     private function validate(): void
     {
-        if (trim($this->id) === '') {
+        if (
+            $this->id !== null
+            && trim($this->id) === ''
+        ) {
             throw new InvalidArgumentException(
                 'Transaction id cannot be empty.'
+            );
+        }
+        if (
+            $this->authorizationId !== null
+            && trim($this->authorizationId) === ''
+        ) {
+            throw new InvalidArgumentException(
+                'Transaction authorization id cannot be empty.'
             );
         }
 
@@ -181,7 +192,10 @@ final readonly class Transaction
             );
         }
 
-        if (trim($this->eventId) === '' && $this->eventId !== null) {
+        if (
+            $this->eventId !== null
+            && trim($this->eventId) === ''
+        ) {
             throw new InvalidArgumentException(
                 'Transaction event id cannot be empty.'
             );

@@ -54,4 +54,9 @@ final readonly class Money
     {
         return $this->cents === 0;
     }
+
+    public function negate(): self
+    {
+        return new self(-$this->cents);
+    }
 }

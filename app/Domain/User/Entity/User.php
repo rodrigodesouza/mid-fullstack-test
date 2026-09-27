@@ -11,7 +11,7 @@ use App\Domain\User\Exceptions\InvalidUserAttributeException;
 final class User
 {
     public function __construct(
-        private readonly string $id,
+        private readonly int $id,
         private readonly int $companyId,
         private readonly string $name,
         private readonly Email $email,
@@ -21,7 +21,7 @@ final class User
         $this->validate($id, $companyId, $name, $password);
     }
 
-    public function id(): string
+    public function id(): int
     {
         return $this->id;
     }
@@ -46,10 +46,12 @@ final class User
         return (string) $this->email;
     }
 
-    private function validate(string $id, int $companyId, string $name, ?string $password): void
+    private function validate(int $id, int $companyId, string $name, ?string $password): void
     {
-        if (trim($id) === '') {
-            throw new InvalidUserAttributeException('User ID cannot be empty.');
+        if ($this->id <= 0) {
+            throw new InvalidUserAttributeException(
+                'User ID must be a positive integer.'
+            );
         }
 
         if (trim($name) === '') {

@@ -9,13 +9,13 @@ use App\Domain\Company\Exceptions\InvalidCompanyAttributeException;
 final class Company
 {
     public function __construct(
-        private readonly string $id,
+        private readonly int $id,
         private readonly string $name,
     ) {
         $this->validate($id, $name);
     }
 
-    public function id(): string
+    public function id(): int
     {
         return $this->id;
     }
@@ -25,10 +25,12 @@ final class Company
         return $this->name;
     }
 
-    private function validate(string $id, string $name): void
+    private function validate(int $id, string $name): void
     {
-        if (trim($id) === '') {
-            throw new InvalidCompanyAttributeException('Company ID cannot be empty.');
+        if ($this->id <= 0) {
+            throw new InvalidCompanyAttributeException(
+                'Company ID must be a positive integer.'
+            );
         }
 
         if (trim($name) === '') {

@@ -10,56 +10,43 @@ use App\Domain\User\Exceptions\InvalidUserAttributeException;
 // Testa se usuário pode ser instanciada corretamente
 test('it can instantiate a user with initial balance', function () {
     $user = new User(
-        id: 'user_john',
+        id: 1,
         companyId: 1,
         name: 'John Doe',
         email: new Email('john.doe@example.com'),
         password: 'securepassword',
-        role: RoleEnum::CARD_HOLE,
+        role: RoleEnum::CARD_HOLDER,
     );
 
-    expect($user->id())->toBe('user_john')
+    expect($user->id())->toBe(1)
         ->and($user->name())->toBe('John Doe')
         ->and($user->companyId())->toBe(1)
-        ->and($user->role())->toBe(RoleEnum::CARD_HOLE)
+        ->and($user->role())->toBe(RoleEnum::CARD_HOLDER)
         ->and($user->email())->toBe('john.doe@example.com');
 });
 
 // Testa se lança exceção ao tentar criar um usuário com ID vazio
 test('it throws exception when user id is empty', function () {
     expect(fn () => new User(
-        id: '',
+        id: 0,
         name: 'John Doe',
         companyId: 1,
         email: new Email('john.doe@example.com'),
         password: 'securepassword',
-        role: RoleEnum::CARD_HOLE,
+        role: RoleEnum::CARD_HOLDER,
     ))
-        ->toThrow(InvalidUserAttributeException::class, 'User ID cannot be empty.');
-});
-
-// Testa se lança exceção ao tentar criar um usuário com ID contendo apenas espaços em branco
-test('it throws exception when user id is blank', function () {
-    expect(fn () => new User(
-        id: '   ',
-        name: 'John Doe',
-        companyId: 1,
-        email: new Email('john.doe@example.com'),
-        password: 'securepassword',
-        role: RoleEnum::CARD_HOLE,
-    ))
-        ->toThrow(InvalidUserAttributeException::class, 'User ID cannot be empty.');
+        ->toThrow(InvalidUserAttributeException::class, 'User ID must be a positive integer.');
 });
 
 // Testa se lança exceção ao tentar criar um usuário com nome vazio
 test('it throws exception when user name is empty', function () {
     expect(fn () => new User(
-        id: 'user_john',
+        id: 1,
         name: '',
         companyId: 1,
         email: new Email('john.doe@example.com'),
         password: 'securepassword',
-        role: RoleEnum::CARD_HOLE,
+        role: RoleEnum::CARD_HOLDER,
     ))
         ->toThrow(InvalidUserAttributeException::class, 'User name cannot be empty.');
 });
@@ -67,12 +54,12 @@ test('it throws exception when user name is empty', function () {
 // Testa se lança exceção ao tentar criar um usuário com nome contendo apenas espaços em branco
 test('it throws exception when user name is blank', function () {
     expect(fn () => new User(
-        id: 'user_john',
+        id: 1,
         name: '   ',
         companyId: 1,
         email: new Email('john.doe@example.com'),
         password: 'securepassword',
-        role: RoleEnum::CARD_HOLE,
+        role: RoleEnum::CARD_HOLDER,
     ))
         ->toThrow(InvalidUserAttributeException::class, 'User name cannot be empty.');
 });
@@ -80,12 +67,12 @@ test('it throws exception when user name is blank', function () {
 // Testa se lança exceção ao tentar criar um usuário com e-mail inválido
 test('it throws exception when user email is invalid', function () {
     expect(fn () => new User(
-        id: 'user_john',
+        id: 1,
         name: 'John Doe',
         companyId: 1,
         email: new Email('invalid-email'),
         password: 'securepassword',
-        role: RoleEnum::CARD_HOLE,
+        role: RoleEnum::CARD_HOLDER,
     ))
         ->toThrow(InvalidArgumentException::class, 'Invalid email address.');
 });
