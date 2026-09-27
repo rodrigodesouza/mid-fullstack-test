@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Domain\Shared\ValueObjects;
+namespace App\Domain\Shared\ValueObjects;
 
 final readonly class Money
 {
