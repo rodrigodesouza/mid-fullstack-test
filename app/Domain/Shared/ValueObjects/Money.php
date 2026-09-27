@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Domain\Shared\ValueObjects;
+namespace App\Domain\Shared\ValueObjects;
 
 final readonly class Money
 {
@@ -53,5 +53,10 @@ final readonly class Money
     public function isZero(): bool
     {
         return $this->cents === 0;
+    }
+
+    public function negate(): self
+    {
+        return new self(-$this->cents);
     }
 }

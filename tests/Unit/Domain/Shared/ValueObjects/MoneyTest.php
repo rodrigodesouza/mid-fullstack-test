@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Domain\Shared\ValueObjects\Money;
+use App\Domain\Shared\ValueObjects\Money;
 
 // Testa se o objeto Money pode ser instanciado via centavos e recupera o valor corretamente
 test('it can be instantiated from cents and return cents', function () {
