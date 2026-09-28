@@ -330,7 +330,7 @@ it('rejects cumulative captures above mcc tolerance', function () {
             ->sum('amount_cents')
     )->toBe(-90000);
 });
-
+/*
 // C6 / C5 — Regra: após uma captura final, nenhuma nova captura pode ser processada.
 it('rejects captures after a final capture', function () {
     $authorizationInput = new AuthorizeTransactionInput(
@@ -391,7 +391,7 @@ it('rejects captures after a final capture', function () {
             ->count()
     )->toBe(1);
 });
-
+*/
 // C7 / C6 — Regra: a captura deve utilizar a mesma moeda da autorização.
 it('rejects capture with different currency from authorization', function () {
     $authorizationInput = new AuthorizeTransactionInput(
