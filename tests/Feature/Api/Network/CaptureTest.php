@@ -10,6 +10,7 @@ use App\Application\Capture\UseCases\CaptureTransaction;
 use App\Domain\Authorization\Enums\AuthorizationDecisionEnum;
 use App\Domain\Shared\ValueObjects\Money;
 use App\Domain\Transaction\Enums\TransactionTypeEnum;
+use App\Infrastructure\Persistence\Eloquent\Models\EventModel;
 use App\Infrastructure\Persistence\Eloquent\Models\TransactionModel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -59,7 +60,7 @@ it('captures an approved authorization and preserves the original reservation', 
     // C1
     $captureInput = new CaptureTransactionInput(
         externalId: 'cap_capture_001',
-        authorizationId: $authorization->id(),
+        authorizationId: $authorization->externalId(),
         amount: Money::fromCents(30000),
         currency: 'BRL',
         occurredAt: new DateTimeImmutable('2026-09-17T15:03:22Z'),
@@ -125,7 +126,7 @@ it('records multiple partial captures for the same authorization', function () {
     $firstCapture = $capture->execute(
         new CaptureTransactionInput(
             externalId: 'cap_capture_002_001',
-            authorizationId: $authorization->id(),
+            authorizationId: $authorization->externalId(),
             amount: Money::fromCents(30000),
             currency: 'BRL',
             occurredAt: new DateTimeImmutable('2026-09-17T15:03:22Z'),
@@ -136,7 +137,7 @@ it('records multiple partial captures for the same authorization', function () {
     $secondCapture = $capture->execute(
         new CaptureTransactionInput(
             externalId: 'cap_capture_002_002',
-            authorizationId: $authorization->id(),
+            authorizationId: $authorization->externalId(),
             amount: Money::fromCents(30000),
             currency: 'BRL',
             occurredAt: new DateTimeImmutable('2026-09-17T16:03:22Z'),
@@ -194,7 +195,7 @@ it('allows capture above authorization amount within mcc tolerance', function ()
     $result = $capture->execute(
         new CaptureTransactionInput(
             externalId: 'cap_capture_003_001',
-            authorizationId: $authorization->id(),
+            authorizationId: $authorization->externalId(),
             amount: Money::fromCents(90000),
             currency: 'BRL',
             occurredAt: new DateTimeImmutable('2026-09-17T15:03:22Z'),
@@ -244,7 +245,7 @@ it('rejects capture above mcc tolerance', function () {
     $result = $capture->execute(
         new CaptureTransactionInput(
             externalId: 'cap_capture_004_001',
-            authorizationId: $authorization->id(),
+            authorizationId: $authorization->externalId(),
             amount: Money::fromCents(96100),
             currency: 'BRL',
             occurredAt: new DateTimeImmutable('2026-09-17T15:03:22Z'),
@@ -294,7 +295,7 @@ it('rejects cumulative captures above mcc tolerance', function () {
     $firstCapture = $capture->execute(
         new CaptureTransactionInput(
             externalId: 'cap_capture_005_001',
-            authorizationId: $authorization->id(),
+            authorizationId: $authorization->externalId(),
             amount: Money::fromCents(90000),
             currency: 'BRL',
             occurredAt: new DateTimeImmutable('2026-09-17T15:03:22Z'),
@@ -305,7 +306,7 @@ it('rejects cumulative captures above mcc tolerance', function () {
     $secondCapture = $capture->execute(
         new CaptureTransactionInput(
             externalId: 'cap_capture_005_002',
-            authorizationId: $authorization->id(),
+            authorizationId: $authorization->externalId(),
             amount: Money::fromCents(10000),
             currency: 'BRL',
             occurredAt: new DateTimeImmutable('2026-09-17T16:03:22Z'),
@@ -330,7 +331,7 @@ it('rejects cumulative captures above mcc tolerance', function () {
             ->sum('amount_cents')
     )->toBe(-90000);
 });
-/*
+
 // C6 / C5 — Regra: após uma captura final, nenhuma nova captura pode ser processada.
 it('rejects captures after a final capture', function () {
     $authorizationInput = new AuthorizeTransactionInput(
@@ -362,7 +363,7 @@ it('rejects captures after a final capture', function () {
     $firstCapture = $capture->execute(
         new CaptureTransactionInput(
             externalId: 'cap_capture_006_001',
-            authorizationId: $authorization->id(),
+            authorizationId: $authorization->externalId(),
             amount: Money::fromCents(50000),
             currency: 'BRL',
             occurredAt: new DateTimeImmutable('2026-09-17T15:03:22Z'),
@@ -373,7 +374,7 @@ it('rejects captures after a final capture', function () {
     $secondCapture = $capture->execute(
         new CaptureTransactionInput(
             externalId: 'cap_capture_006_002',
-            authorizationId: $authorization->id(),
+            authorizationId: $authorization->externalId(),
             amount: Money::fromCents(10000),
             currency: 'BRL',
             occurredAt: new DateTimeImmutable('2026-09-17T16:03:22Z'),
@@ -391,7 +392,7 @@ it('rejects captures after a final capture', function () {
             ->count()
     )->toBe(1);
 });
-*/
+
 // C7 / C6 — Regra: a captura deve utilizar a mesma moeda da autorização.
 it('rejects capture with different currency from authorization', function () {
     $authorizationInput = new AuthorizeTransactionInput(
@@ -423,7 +424,7 @@ it('rejects capture with different currency from authorization', function () {
     $result = $capture->execute(
         new CaptureTransactionInput(
             externalId: 'cap_capture_007_001',
-            authorizationId: $authorization->id(),
+            authorizationId: $authorization->externalId(),
             amount: Money::fromCents(50000),
             currency: 'USD',
             occurredAt: new DateTimeImmutable('2026-09-17T15:03:22Z'),
@@ -437,6 +438,91 @@ it('rejects capture with different currency from authorization', function () {
         TransactionModel::query()
             ->where('authorization_id', $authorization->id())
             ->where('type', TransactionTypeEnum::CAPTURE->value)
+            ->count()
+    )->toBe(0);
+});
+
+// C8 / X2 — Regra: um evento duplicado não pode produzir um segundo efeito financeiro.
+it('does not apply a duplicated capture event twice', function () {
+    $authorizationResult = app(AuthorizeTransaction::class)->execute(
+        new AuthorizeTransactionInput(
+            externalId: 'aut_capture_008',
+            cardToken: 'tok_diego',
+            amount: Money::fromCents(80000),
+            currency: 'BRL',
+            mcc: '5812',
+            merchant: new MerchantInput(
+                name: 'Restaurante Teste',
+                city: 'Porto Alegre',
+                country: 'BR',
+            ),
+            occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+        ),
+    );
+
+    $authorization = $authorizationResult->authorization;
+
+    $capture = app(CaptureTransaction::class);
+
+    $input = new CaptureTransactionInput(
+        externalId: 'cap_capture_008_001',
+        authorizationId: 'aut_capture_008',
+        amount: Money::fromCents(30000),
+        currency: 'BRL',
+        occurredAt: new DateTimeImmutable('2026-09-17T15:03:22Z'),
+        final: false,
+    );
+
+    $first = $capture->execute($input);
+    $second = $capture->execute($input);
+
+    expect($first)->toBeTrue()
+        ->and($second)->toBeTrue();
+
+    expect(
+        TransactionModel::query()
+            ->where('authorization_id', $authorization->id())
+            ->where('type', TransactionTypeEnum::CAPTURE->value)
+            ->count()
+    )->toBe(1);
+
+    expect(
+        EventModel::query()
+            ->where('external_id', 'cap_capture_008_001')
+            ->count()
+    )->toBe(1);
+});
+
+// C9 / X1 — Regra: captura recebida antes da autorização deve ficar pendente e não produzir efeito financeiro.
+it('stores capture as pending when authorization does not exist yet', function () {
+    $capture = app(CaptureTransaction::class);
+
+    $result = $capture->execute(
+        new CaptureTransactionInput(
+            externalId: 'cap_capture_009_001',
+            authorizationId: '00000000-0000-0000-0000-000000000999',
+            amount: Money::fromCents(30000),
+            currency: 'BRL',
+            occurredAt: new DateTimeImmutable('2026-09-17T15:03:22Z'),
+            final: false,
+        ),
+    );
+
+    expect($result)->toBeTrue();
+
+    expect(
+        EventModel::query()
+            ->where('external_id', 'cap_capture_009_001')
+            ->value('status')
+    )->toBe('pending');
+
+    expect(
+        TransactionModel::query()
+            ->where('event_id', function ($query) {
+                $query->select('id')
+                    ->from('events')
+                    ->where('external_id', 'cap_capture_009_001');
+            })
             ->count()
     )->toBe(0);
 });

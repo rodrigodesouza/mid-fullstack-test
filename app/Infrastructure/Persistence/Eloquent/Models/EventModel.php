@@ -6,33 +6,35 @@ namespace App\Infrastructure\Persistence\Eloquent\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-final class TransactionModel extends Model
+final class EventModel extends Model
 {
     public $incrementing = false;
 
-    protected $keyType = 'string';
+    protected $table = 'events';
 
-    protected $table = 'transactions';
+    protected $keyType = 'string';
 
     protected $fillable = [
         'id',
-        'company_id',
-        'card_id',
+        'external_id',
         'authorization_id',
-        'event_id',
+        'authorization_reference',
         'type',
         'amount_cents',
+        'currency',
+        'sequence',
+        'final',
         'occurred_at',
-        'limit_month',
-        'reference',
+        'status',
     ];
 
     protected function casts(): array
     {
         return [
             'amount_cents' => 'integer',
+            'sequence' => 'integer',
+            'final' => 'boolean',
             'occurred_at' => 'datetime',
-            'limit_month' => 'date',
         ];
     }
 }

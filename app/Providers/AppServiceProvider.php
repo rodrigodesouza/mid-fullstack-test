@@ -8,12 +8,14 @@ use App\Domain\Authorization\Repositories\AuthorizationRepository;
 use App\Domain\Card\Repositories\CardLimitsRepository;
 use App\Domain\Card\Repositories\CardRepository;
 use App\Domain\Company\Repositories\CompanyBalanceRepository;
+use App\Domain\Event\Repositories\EventRepository;
 use App\Domain\Transaction\Repositories\TransactionRepository;
 use App\Domain\User\Repositories\UserRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\AuthorizationEloquentRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\CardEloquentRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\CardLimitsEloquentRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\CompanyEloquentRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EventEloquentRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\TransactionEloquentRepository;
 use App\Infrastructure\Persistence\Eloquent\Repositories\UserEloquentRepository;
 use Carbon\CarbonImmutable;
@@ -61,6 +63,10 @@ final class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             AuthorizationRepository::class,
             AuthorizationEloquentRepository::class,
+        );
+        $this->app->bind(
+            EventRepository::class,
+            EventEloquentRepository::class,
         );
     }
 
