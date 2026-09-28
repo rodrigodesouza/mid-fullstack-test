@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Transaction\Repositories;
 
 use App\Domain\Authorization\Entity\Authorization;
+use App\Domain\Shared\ValueObjects\Money;
 use App\Domain\Transaction\Entity\Transaction;
 
 interface TransactionRepository
@@ -20,4 +21,8 @@ interface TransactionRepository
         Authorization $authorization,
         Transaction $transaction,
     ): bool;
+
+    public function capturedAmountForAuthorization(string $authorizationId): Money;
+
+    public function hasFinalCapture(string $authorizationId): bool;
 }

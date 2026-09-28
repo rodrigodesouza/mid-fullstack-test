@@ -11,4 +11,6 @@ interface AuthorizationRepository
     public function findByExternalId(string $externalId): ?Authorization;
 
     public function save(Authorization $authorization): void;
+
+    public function findById(string $id): ?Authorization;
 }

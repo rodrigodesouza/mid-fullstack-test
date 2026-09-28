@@ -14,6 +14,18 @@ use DateTimeImmutable;
 
 final class AuthorizationEloquentRepository implements AuthorizationRepository
 {
+    public function findById(string $id): ?Authorization
+    {
+        $model = AuthorizationModel::query()
+            ->find($id);
+
+        if ($model === null) {
+            return null;
+        }
+
+        return $this->toDomain($model);
+    }
+
     public function findByExternalId(string $externalId): ?Authorization
     {
         $model = AuthorizationModel::query()
