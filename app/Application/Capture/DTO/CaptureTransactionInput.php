@@ -16,5 +16,6 @@ final readonly class CaptureTransactionInput
         public string $currency,
         public DateTimeImmutable $occurredAt,
         public bool $final,
+        public ?int $sequence = null,
     ) {}
 }

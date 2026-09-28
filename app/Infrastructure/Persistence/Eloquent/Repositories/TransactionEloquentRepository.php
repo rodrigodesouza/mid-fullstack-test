@@ -12,6 +12,7 @@ use App\Domain\Transaction\Repositories\TransactionRepository;
 use App\Infrastructure\Persistence\Eloquent\Models\AuthorizationModel;
 use App\Infrastructure\Persistence\Eloquent\Models\CardModel;
 use App\Infrastructure\Persistence\Eloquent\Models\CompanyModel;
+use App\Infrastructure\Persistence\Eloquent\Models\EventModel;
 use App\Infrastructure\Persistence\Eloquent\Models\TransactionModel;
 use Illuminate\Support\Facades\DB;
 
@@ -103,7 +104,12 @@ final class TransactionEloquentRepository implements TransactionRepository
 
     public function hasFinalCapture(string $authorizationId): bool
     {
-        return false;
+        return EventModel::query()
+            ->where('authorization_id', $authorizationId)
+            ->where('type', 'capture')
+            ->where('final', true)
+            ->where('status', 'processed')
+            ->exists();
     }
 
     /**

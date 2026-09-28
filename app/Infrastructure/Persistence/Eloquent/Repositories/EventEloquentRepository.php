@@ -59,13 +59,15 @@ final class EventEloquentRepository implements EventRepository
 
     public function findPendingByAuthorizationReference(
         string $authorizationReference
-    ): ?Event {
-        $model = EventModel::query()
+    ): array {
+        return EventModel::query()
             ->where('authorization_reference', $authorizationReference)
             ->where('status', 'pending')
-            ->first();
-
-        return $model === null ? null : $this->toDomain($model);
+            ->orderBy('sequence')
+            ->orderBy('occurred_at')
+            ->get()
+            ->map(fn (EventModel $model) => $this->toDomain($model))
+            ->all();
     }
 
     private function toDomain(EventModel $model): Event

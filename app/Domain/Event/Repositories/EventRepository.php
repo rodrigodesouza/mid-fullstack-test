@@ -16,7 +16,7 @@ interface EventRepository
 
     public function findPendingByAuthorizationReference(
         string $authorizationReference
-    ): ?Event;
+    ): array;
 
     public function update(Event $event): void;
 }

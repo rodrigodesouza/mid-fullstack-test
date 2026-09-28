@@ -57,7 +57,6 @@ it('captures an approved authorization and preserves the original reservation', 
         ->and($reservation->amount_cents)
         ->toBe(-80000);
 
-    // C1
     $captureInput = new CaptureTransactionInput(
         externalId: 'cap_capture_001',
         authorizationId: $authorization->externalId(),
@@ -94,7 +93,63 @@ it('captures an approved authorization and preserves the original reservation', 
     )->toBe(-30000);
 });
 
-// C2 — Regra: uma autorização pode receber múltiplas capturas parciais, cada uma registrada separadamente no ledger.
+// // C2 — Regra: uma captura parcial deve registrar o capture e liberar o valor correspondente da reserva.
+// it('partially captures an authorization and releases the corresponding reservation', function () {
+//     $authorizationInput = new AuthorizeTransactionInput(
+//         externalId: 'aut_capture_011',
+//         cardToken: 'tok_diego',
+//         amount: Money::fromCents(80000),
+//         currency: 'BRL',
+//         mcc: '5411',
+//         merchant: new MerchantInput(
+//             name: 'Mercado Teste',
+//             city: 'Porto Alegre',
+//             country: 'BR',
+//         ),
+//         occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+//     );
+
+//     $authorizationResult = app(AuthorizeTransaction::class)
+//         ->execute($authorizationInput);
+
+//     expect($authorizationResult->decision)
+//         ->toBe(AuthorizationDecisionEnum::APPROVED)
+//         ->and($authorizationResult->authorization)
+//         ->not->toBeNull();
+
+//     $authorization = $authorizationResult->authorization;
+
+//     $capture = app(CaptureTransaction::class);
+
+//     $result = $capture->execute(
+//         new CaptureTransactionInput(
+//             externalId: 'cap_capture_011_001',
+//             authorizationId: $authorization->externalId(),
+//             amount: Money::fromCents(30000),
+//             currency: 'BRL',
+//             occurredAt: new DateTimeImmutable('2026-09-17T15:03:22Z'),
+//             final: false,
+//         ),
+//     );
+
+//     expect($result)->toBeTrue();
+
+//     expect(
+//         TransactionModel::query()
+//             ->where('authorization_id', $authorization->id())
+//             ->where('type', TransactionTypeEnum::CAPTURE->value)
+//             ->sum('amount_cents')
+//     )->toBe('-30000');
+
+//     expect(
+//         TransactionModel::query()
+//             ->where('authorization_id', $authorization->id())
+//             ->where('type', TransactionTypeEnum::RELEASE->value)
+//             ->sum('amount_cents')
+//     )->toBe('30000');
+// });
+
+// C3 — Regra: múltiplos captures parciais devem ser permitidos dentro do limite permitido.
 it('records multiple partial captures for the same authorization', function () {
     $authorizationInput = new AuthorizeTransactionInput(
         externalId: 'aut_capture_002',
@@ -163,7 +218,7 @@ it('records multiple partial captures for the same authorization', function () {
     )->toBe(-60000);
 });
 
-// C3 / C2 — Regra: a captura pode exceder o valor autorizado em até 20% para MCCs com tolerância.
+// C9 — Regra: MCC com tolerância de 20% permite captura acima do valor autorizado dentro do limite.
 it('allows capture above authorization amount within mcc tolerance', function () {
     $authorizationInput = new AuthorizeTransactionInput(
         externalId: 'aut_capture_003',
@@ -213,7 +268,7 @@ it('allows capture above authorization amount within mcc tolerance', function ()
     )->toBe('-90000');
 });
 
-// C4 / C3 — Regra: a captura que ultrapassa a autorização mais a tolerância permitida deve ser rejeitada.
+// C8 — Regra: a captura não pode ultrapassar a autorização acrescida da tolerância permitida.
 it('rejects capture above mcc tolerance', function () {
     $authorizationInput = new AuthorizeTransactionInput(
         externalId: 'aut_capture_004',
@@ -263,7 +318,7 @@ it('rejects capture above mcc tolerance', function () {
     )->toBe(0);
 });
 
-// C5 / C4 — Regra: a soma das capturas não pode ultrapassar a autorização acrescida da tolerância.
+// C8 — Regra: a soma das capturas não pode ultrapassar a autorização acrescida da tolerância.
 it('rejects cumulative captures above mcc tolerance', function () {
     $authorizationInput = new AuthorizeTransactionInput(
         externalId: 'aut_capture_005',
@@ -332,7 +387,7 @@ it('rejects cumulative captures above mcc tolerance', function () {
     )->toBe(-90000);
 });
 
-// C6 / C5 — Regra: após uma captura final, nenhuma nova captura pode ser processada.
+// Regra adicional — após uma captura final, nenhuma nova captura pode ser processada.
 it('rejects captures after a final capture', function () {
     $authorizationInput = new AuthorizeTransactionInput(
         externalId: 'aut_capture_006',
@@ -393,7 +448,7 @@ it('rejects captures after a final capture', function () {
     )->toBe(1);
 });
 
-// C7 / C6 — Regra: a captura deve utilizar a mesma moeda da autorização.
+// Regra adicional — a captura deve utilizar a mesma moeda da autorização.
 it('rejects capture with different currency from authorization', function () {
     $authorizationInput = new AuthorizeTransactionInput(
         externalId: 'aut_capture_007',
@@ -442,7 +497,7 @@ it('rejects capture with different currency from authorization', function () {
     )->toBe(0);
 });
 
-// C8 / X2 — Regra: um evento duplicado não pode produzir um segundo efeito financeiro.
+// C7 — Regra: um evento duplicado não pode produzir um segundo efeito financeiro.
 it('does not apply a duplicated capture event twice', function () {
     $authorizationResult = app(AuthorizeTransaction::class)->execute(
         new AuthorizeTransactionInput(
@@ -493,7 +548,7 @@ it('does not apply a duplicated capture event twice', function () {
     )->toBe(1);
 });
 
-// C9 / X1 — Regra: captura recebida antes da autorização deve ficar pendente e não produzir efeito financeiro.
+// C5 — Regra: uma captura recebida antes da autorização deve ficar pendente e não produzir efeito financeiro.
 it('stores capture as pending when authorization does not exist yet', function () {
     $capture = app(CaptureTransaction::class);
 
@@ -523,6 +578,55 @@ it('stores capture as pending when authorization does not exist yet', function (
                     ->from('events')
                     ->where('external_id', 'cap_capture_009_001');
             })
+            ->count()
+    )->toBe(0);
+});
+
+// C10 — Regra: MCC sem tolerância não permite captura acima do valor autorizado.
+it('does not allow capture above the authorization amount when the mcc has no tolerance', function () {
+    $authorizationInput = new AuthorizeTransactionInput(
+        externalId: 'aut_capture_010',
+        cardToken: 'tok_diego',
+        amount: Money::fromCents(80000),
+        currency: 'BRL',
+        mcc: '5411',
+        merchant: new MerchantInput(
+            name: 'Mercado Teste',
+            city: 'Porto Alegre',
+            country: 'BR',
+        ),
+        occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+    );
+
+    $authorizationResult = app(AuthorizeTransaction::class)
+        ->execute($authorizationInput);
+
+    expect($authorizationResult->decision)
+        ->toBe(AuthorizationDecisionEnum::APPROVED)
+        ->and($authorizationResult->authorization)
+        ->not->toBeNull();
+
+    $authorization = $authorizationResult->authorization;
+
+    $capture = app(CaptureTransaction::class);
+
+    $result = $capture->execute(
+        new CaptureTransactionInput(
+            externalId: 'cap_capture_010_001',
+            authorizationId: $authorization->externalId(),
+            amount: Money::fromCents(80001),
+            currency: 'BRL',
+            occurredAt: new DateTimeImmutable('2026-09-17T15:03:22Z'),
+            final: true,
+        ),
+    );
+
+    expect($result)->toBeFalse();
+
+    expect(
+        TransactionModel::query()
+            ->where('authorization_id', $authorization->id())
+            ->where('type', TransactionTypeEnum::CAPTURE->value)
             ->count()
     )->toBe(0);
 });

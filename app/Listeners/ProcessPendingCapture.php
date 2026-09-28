@@ -21,24 +21,23 @@ final class ProcessPendingCapture
     {
         $authorization = $event->authorization;
 
-        $pendingEvent = $this->eventRepository
+        $pendingEvents = $this->eventRepository
             ->findPendingByAuthorizationReference(
                 $authorization->externalId()
             );
 
-        if ($pendingEvent === null) {
-            return;
+        foreach ($pendingEvents as $pendingEvent) {
+            $this->captureTransaction->execute(
+                new CaptureTransactionInput(
+                    externalId: $pendingEvent->externalId(),
+                    authorizationId: $authorization->externalId(),
+                    amount: Money::fromCents($pendingEvent->amountCents()),
+                    currency: $pendingEvent->currency(),
+                    occurredAt: $pendingEvent->occurredAt(),
+                    final: $pendingEvent->isFinal(),
+                    sequence: $pendingEvent->sequence(),
+                ),
+            );
         }
-
-        $this->captureTransaction->execute(
-            new CaptureTransactionInput(
-                externalId: $pendingEvent->externalId(),
-                authorizationId: $authorization->externalId(),
-                amount: Money::fromCents($pendingEvent->amountCents()),
-                currency: $pendingEvent->currency(),
-                occurredAt: $pendingEvent->occurredAt(),
-                final: $pendingEvent->isFinal(),
-            ),
-        );
     }
 }

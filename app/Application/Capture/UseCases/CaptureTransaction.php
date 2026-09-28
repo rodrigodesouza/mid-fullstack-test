@@ -26,9 +26,6 @@ final class CaptureTransaction
 
     public function execute(CaptureTransactionInput $input): bool
     {
-        // if ($this->eventRepository->findByExternalId($input->externalId) !== null) {
-        //     return true;
-        // }
         $existingEvent = $this->eventRepository->findByExternalId($input->externalId);
         if ($existingEvent !== null && $existingEvent->status() !== 'pending') {
             return true;
@@ -46,7 +43,7 @@ final class CaptureTransaction
                 type: 'capture',
                 amountCents: $input->amount->toCents(),
                 currency: $input->currency,
-                sequence: null,
+                sequence: $input->sequence,
                 final: $input->final,
                 occurredAt: $input->occurredAt,
                 status: 'pending',
@@ -119,7 +116,7 @@ final class CaptureTransaction
             type: 'capture',
             amountCents: $input->amount->toCents(),
             currency: $input->currency,
-            sequence: null,
+            sequence: $input->sequence,
             final: $input->final,
             occurredAt: $input->occurredAt,
             status: 'processed',
