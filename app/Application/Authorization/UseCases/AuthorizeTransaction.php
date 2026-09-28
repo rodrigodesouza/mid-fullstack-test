@@ -19,6 +19,7 @@ use App\Domain\Transaction\Enums\TransactionTypeEnum;
 use App\Domain\Transaction\Repositories\TransactionRepository;
 use App\Domain\User\Entity\User;
 use App\Domain\User\Repositories\UserRepository;
+use App\Events\AuthorizationApproved;
 
 final class AuthorizeTransaction
 {
@@ -102,6 +103,8 @@ final class AuthorizeTransaction
                 authorization: null,
             );
         }
+
+        event(new AuthorizationApproved($authorization));
 
         return new AuthorizationResult(
             decision: AuthorizationDecisionEnum::APPROVED,

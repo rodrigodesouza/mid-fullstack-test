@@ -8,6 +8,8 @@ use App\Application\Capture\DTO\CaptureTransactionInput;
 use App\Domain\Authorization\Enums\AuthorizationDecisionEnum;
 use App\Domain\Authorization\Repositories\AuthorizationRepository;
 use App\Domain\Authorization\Services\CaptureTolerance;
+use App\Domain\Event\Entity\Event;
+use App\Domain\Event\Repositories\EventRepository;
 use App\Domain\Shared\ValueObjects\Money;
 use App\Domain\Transaction\Entity\Transaction;
 use App\Domain\Transaction\Enums\TransactionTypeEnum;
@@ -19,18 +21,47 @@ final class CaptureTransaction
         private readonly AuthorizationRepository $authorizationRepository,
         private readonly TransactionRepository $transactionRepository,
         private readonly CaptureTolerance $captureTolerance,
+        private readonly EventRepository $eventRepository,
     ) {}
 
     public function execute(CaptureTransactionInput $input): bool
     {
+        // if ($this->eventRepository->findByExternalId($input->externalId) !== null) {
+        //     return true;
+        // }
+        $existingEvent = $this->eventRepository->findByExternalId($input->externalId);
+        if ($existingEvent !== null && $existingEvent->status() !== 'pending') {
+            return true;
+        }
+
         $authorization = $this->authorizationRepository
-            ->findById($input->authorizationId);
+            ->findByExternalId($input->authorizationId);
 
         if ($authorization === null) {
-            return false;
+            $event = new Event(
+                id: (string) \Illuminate\Support\Str::uuid(),
+                externalId: $input->externalId,
+                authorizationReference: $input->authorizationId,
+                authorizationId: null,
+                type: 'capture',
+                amountCents: $input->amount->toCents(),
+                currency: $input->currency,
+                sequence: null,
+                final: $input->final,
+                occurredAt: $input->occurredAt,
+                status: 'pending',
+            );
+
+            $this->eventRepository->save($event);
+
+            return true;
         }
 
         if ($authorization->decision() !== AuthorizationDecisionEnum::APPROVED) {
+            return false;
+        }
+
+        if ($this->eventRepository->hasFinalCapture($authorization->id())) {
             return false;
         }
 
@@ -78,6 +109,28 @@ final class CaptureTransaction
         );
 
         $this->transactionRepository->save($capture);
+
+        $event = new Event(
+            // id: (string) \Illuminate\Support\Str::uuid(),
+            id: $existingEvent?->id() ?? (string) \Illuminate\Support\Str::uuid(),
+            externalId: $input->externalId,
+            authorizationReference: $input->authorizationId,
+            authorizationId: $authorization->id(),
+            type: 'capture',
+            amountCents: $input->amount->toCents(),
+            currency: $input->currency,
+            sequence: null,
+            final: $input->final,
+            occurredAt: $input->occurredAt,
+            status: 'processed',
+        );
+
+        // $this->eventRepository->save($event);
+        if ($existingEvent !== null) {
+            $this->eventRepository->update($event);
+        } else {
+            $this->eventRepository->save($event);
+        }
 
         return true;
     }

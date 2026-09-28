@@ -5,11 +5,14 @@ declare(strict_types=1);
 use App\Application\Authorization\DTO\AuthorizeTransactionInput;
 use App\Application\Authorization\DTO\MerchantInput;
 use App\Application\Authorization\UseCases\AuthorizeTransaction;
+use App\Application\Capture\DTO\CaptureTransactionInput;
+use App\Application\Capture\UseCases\CaptureTransaction;
 use App\Domain\Authorization\Enums\AuthorizationDecisionEnum;
 use App\Domain\Authorization\Enums\AuthorizationReasonEnum;
 use App\Domain\Shared\ValueObjects\Money;
 use App\Domain\Transaction\Enums\TransactionTypeEnum;
 use App\Infrastructure\Persistence\Eloquent\Models\AuthorizationModel;
+use App\Infrastructure\Persistence\Eloquent\Models\EventModel;
 use App\Infrastructure\Persistence\Eloquent\Models\TransactionModel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -72,6 +75,79 @@ it('approves a valid authorization and records the reservation', function () {
         ->toBe(1)
         ->and($reservation->company_id)
         ->toBe(1);
+});
+
+// X1 / I10 — Regra: uma captura recebida antes da autorização deve ser processada quando a autorização chegar.
+it('processes a pending capture when its authorization arrives', function () {
+    $capture = app(CaptureTransaction::class);
+
+    // Primeiro: chega uma captura para uma autorização que ainda não existe.
+    $captureResult = $capture->execute(
+        new CaptureTransactionInput(
+            externalId: 'evt_pending_010_001',
+            authorizationId: 'aut_pending_010_001',
+            amount: Money::fromCents(30000),
+            currency: 'BRL',
+            occurredAt: new DateTimeImmutable('2026-09-17T18:40:00Z'),
+            final: false,
+        ),
+    );
+
+    expect($captureResult)->toBeTrue();
+
+    $pendingEvent = EventModel::query()
+        ->where('external_id', 'evt_pending_010_001')
+        ->first();
+
+    expect($pendingEvent)
+        ->not->toBeNull()
+        ->and($pendingEvent->authorization_reference)
+        ->toBe('aut_pending_010_001')
+        ->and($pendingEvent->authorization_id)
+        ->toBeNull()
+        ->and($pendingEvent->status)
+        ->toBe('pending');
+
+    // Depois: chega a autorização correspondente.
+    $authorization = app(AuthorizeTransaction::class);
+
+    $result = $authorization->execute(
+        new AuthorizeTransactionInput(
+            externalId: 'aut_pending_010_001',
+            cardToken: 'tok_ana',
+            amount: Money::fromCents(80000),
+            currency: 'BRL',
+            mcc: '5812',
+            merchant: new MerchantInput(
+                name: 'Restaurante Bom Prato',
+                city: 'Porto Alegre',
+                country: 'BR',
+            ),
+            occurredAt: new DateTimeImmutable('2026-09-17T18:30:00Z'),
+        ),
+    );
+
+    expect($result->decision)
+        ->toBe(AuthorizationDecisionEnum::APPROVED)
+        ->and($result->authorization)
+        ->not->toBeNull();
+
+    // A captura pendente deve ter sido processada.
+    $pendingEvent->refresh();
+
+    expect($pendingEvent->status)
+        ->toBe('processed')
+        ->and($pendingEvent->authorization_id)
+        ->toBe($result->authorization->id());
+
+    // E deve existir exatamente uma transação de capture.
+    expect(
+        TransactionModel::query()
+            ->where('type', TransactionTypeEnum::CAPTURE->value)
+            ->where('reference', 'evt_pending_010_001')
+            ->count()
+    )->toBe(1);
+
 });
 
 // I2 / A2 — Regra: uma autorização com MCC bloqueado deve ser recusada sem gerar efeito financeiro.

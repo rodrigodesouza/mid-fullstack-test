@@ -1,0 +1,44 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Listeners;
+
+use App\Application\Capture\DTO\CaptureTransactionInput;
+use App\Application\Capture\UseCases\CaptureTransaction;
+use App\Domain\Event\Repositories\EventRepository;
+use App\Domain\Shared\ValueObjects\Money;
+use App\Events\AuthorizationApproved;
+
+final class ProcessPendingCapture
+{
+    public function __construct(
+        private readonly EventRepository $eventRepository,
+        private readonly CaptureTransaction $captureTransaction,
+    ) {}
+
+    public function handle(AuthorizationApproved $event): void
+    {
+        $authorization = $event->authorization;
+
+        $pendingEvent = $this->eventRepository
+            ->findPendingByAuthorizationReference(
+                $authorization->externalId()
+            );
+
+        if ($pendingEvent === null) {
+            return;
+        }
+
+        $this->captureTransaction->execute(
+            new CaptureTransactionInput(
+                externalId: $pendingEvent->externalId(),
+                authorizationId: $authorization->externalId(),
+                amount: Money::fromCents($pendingEvent->amountCents()),
+                currency: $pendingEvent->currency(),
+                occurredAt: $pendingEvent->occurredAt(),
+                final: $pendingEvent->isFinal(),
+            ),
+        );
+    }
+}
