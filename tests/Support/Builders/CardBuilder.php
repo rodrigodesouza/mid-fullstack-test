@@ -19,6 +19,8 @@ final class CardBuilder
 
     private Money $monthlyLimitCents;
 
+    private ?Money $purchaseLimitCents = null;
+
     private CardStatusEnum $status = CardStatusEnum::ACTIVE;
 
     private DateTimeImmutable $createdAt;
@@ -65,6 +67,13 @@ final class CardBuilder
         return $this;
     }
 
+    public function withPurchaseLimit(int $cents): self
+    {
+        $this->purchaseLimitCents = Money::fromCents($cents);
+
+        return $this;
+    }
+
     public function withStatus(CardStatusEnum $status): self
     {
         $this->status = $status;
@@ -82,6 +91,7 @@ final class CardBuilder
             status: $this->status,
             createdAt: $this->createdAt,
             updatedAt: $this->updatedAt,
+            purchaseLimitCents: $this->purchaseLimitCents,
         );
     }
 }

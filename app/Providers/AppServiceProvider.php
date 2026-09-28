@@ -4,6 +4,18 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Authorization\Repositories\AuthorizationRepository;
+use App\Domain\Card\Repositories\CardLimitsRepository;
+use App\Domain\Card\Repositories\CardRepository;
+use App\Domain\Company\Repositories\CompanyBalanceRepository;
+use App\Domain\Transaction\Repositories\TransactionRepository;
+use App\Domain\User\Repositories\UserRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\AuthorizationEloquentRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\CardEloquentRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\CardLimitsEloquentRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\CompanyEloquentRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\TransactionEloquentRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\UserEloquentRepository;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Date;
@@ -21,6 +33,35 @@ final class AppServiceProvider extends ServiceProvider
     {
         $this->registerTelescope();
         $this->registerDebugbar();
+
+        $this->app->bind(
+            CardRepository::class,
+            CardEloquentRepository::class,
+        );
+
+        $this->app->bind(
+            UserRepository::class,
+            UserEloquentRepository::class,
+        );
+
+        $this->app->bind(
+            CompanyBalanceRepository::class,
+            CompanyEloquentRepository::class,
+        );
+
+        $this->app->bind(
+            CardLimitsRepository::class,
+            CardLimitsEloquentRepository::class,
+        );
+        $this->app->bind(
+            TransactionRepository::class,
+            TransactionEloquentRepository::class,
+        );
+
+        $this->app->bind(
+            AuthorizationRepository::class,
+            AuthorizationEloquentRepository::class,
+        );
     }
 
     /**

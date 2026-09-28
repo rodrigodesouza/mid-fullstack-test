@@ -8,6 +8,7 @@ erDiagram
     AUTHORIZATION ||--o{ EVENT : has
     AUTHORIZATION ||--o{ TRANSACTION : originates
     EVENT ||--o{ TRANSACTION : originates
+    CARD ||--o{ CARD_MCC_RULE : has
 
     COMPANY {
         int id PK
@@ -29,6 +30,14 @@ erDiagram
         string card_token UK
         bigint monthly_limit_cents
         string status
+    }
+
+    CARD_MCC_RULE {
+        int id PK
+        int card_id FK
+        string mcc
+        string rule
+        int tolerance_percent
     }
 
     AUTHORIZATION {
@@ -86,11 +95,22 @@ erDiagram
 
 **Card**
 
-| Campo                 | Descrição                                                                                                                            |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `status`              | Estado do cartão. Os valores usados pelo domínio são`active`e`blocked`. Um cartão`blocked`não pode gerar uma authorization aprovada. |
-| `monthly_limit_cents` | Limite mensal nominal do cartão, armazenado em centavos para evitar problemas de precisão monetária.                                 |
-| `card_token`          | Identificador/token usado pela rede para identificar o cartão sem expor seus dados reais.                                            |
+| Campo                  | Descrição                                                                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `status`               | Estado do cartão. Os valores usados pelo domínio são`active`e`blocked`. Um cartão`blocked`não pode gerar uma authorization aprovada. |
+| `monthly_limit_cents`  | Limite mensal nominal do cartão, armazenado em centavos para evitar problemas de precisão monetária.                                 |
+| `card_token`           | Identificador/token usado pela rede para identificar o cartão sem expor seus dados reais.                                            |
+| `purchase_limit_cents` | Limite máximo permitido para uma única autorização de compra, em centavos. Diferente do limite mensal.                               |
+
+**CARD_MCC_RULE**
+
+| Campo               | Descrição                                                                         |
+| ------------------- | --------------------------------------------------------------------------------- |
+| `id`                | Identificador interno da regra.                                                   |
+| `card_id`           | Identificador do cartão ao qual a regra de MCC pertence.                          |
+| `mcc`               | Merchant Category Code ao qual a regra se aplica.                                 |
+| `rule`              | Tipo de regra aplicada ao MCC, como bloqueio ou tolerância de captura.            |
+| `tolerance_percent` | Percentual de tolerância permitido para captura quando a regra for de tolerância. |
 
 **Authorization**
 
@@ -122,3 +142,10 @@ erDiagram
 | `reference`    | Identificador da origem do movimento. Pode referenciar a authorization ou o event responsável pela transaction.                                               |
 | `limit_month`  | Mês de limite ao qual o movimento pertence. É diferente de`occurred_at`, pois uma capture no mês seguinte pode continuar pertencendo ao mês da authorization. |
 | `occurred_at`  | Momento em que o movimento financeiro foi registrado/ocorreu.                                                                                                 |
+
+| `rule`              | Descrição                                                   |
+| ------------------- | ----------------------------------------------------------- |
+| `blocked`           | O MCC é bloqueado para o cartão.                            |
+| `capture_tolerance` | O MCC permite uma tolerância percentual no valor capturado. |
+
+Para o `tolerance_percent`, quando a regra não for de tolerância, podemos usar `0`.

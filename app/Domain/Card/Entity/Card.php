@@ -29,6 +29,7 @@ final class Card
         private CardStatusEnum $status,
         private readonly DateTimeImmutable $createdAt,
         private DateTimeImmutable $updatedAt,
+        private ?Money $purchaseLimitCents = null,
     ) {
         if ($this->id <= 0) {
             throw new InvalidArgumentException('Card id must be greater than zero.');
@@ -47,6 +48,14 @@ final class Card
                 'Monthly limit must be greater than zero.'
             );
         }
+        if ($this->purchaseLimitCents !== null) {
+            if ($this->purchaseLimitCents->toCents() <= 0) {
+                throw new InvalidArgumentException(
+                    'Purchase limit must be greater than zero.'
+                );
+            }
+        }
+
     }
 
     public function id(): int
@@ -75,6 +84,14 @@ final class Card
     public function monthlyLimitCents(): Money
     {
         return $this->monthlyLimitCents;
+    }
+
+    /**
+     * Limite máximo permitido para uma única autorização de compra, em centavos. Diferente do limite mensal.
+     */
+    public function purchaseLimitCents(): ?Money
+    {
+        return $this->purchaseLimitCents;
     }
 
     public function createdAt(): DateTimeImmutable
