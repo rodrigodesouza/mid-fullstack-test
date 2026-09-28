@@ -13,8 +13,6 @@ use App\Domain\Card\Repositories\CardLimitsRepository;
 use App\Domain\Card\Repositories\CardRepository;
 use App\Domain\Company\Repositories\CompanyBalanceRepository;
 use App\Domain\Shared\ValueObjects\Money;
-use App\Domain\Transaction\Entity\Transaction;
-use App\Domain\Transaction\Enums\TransactionTypeEnum;
 use App\Domain\Transaction\Repositories\TransactionRepository;
 use App\Domain\User\Repositories\UserRepository;
 use Tests\Support\Builders\AuthorizeTransactionInputBuilder;
@@ -486,26 +484,10 @@ it('A8: approves the authorization when all authorization rules pass', function 
         ->with($user->companyId())
         ->andReturn(Money::fromCents(100000));
 
-    // $companyBalanceRepository
-    //     ->shouldReceive('reserve')
-    //     ->once()
-    //     ->with($user->companyId(), Mockery::type(Money::class));
     $transactionRepository
         ->shouldReceive('reserve')
         ->once()
         ->andReturn(true);
-    // $transactionRepository
-    //     ->shouldReceive('save')
-    //     ->once()
-    //     ->with(Mockery::on(
-    //         fn (Transaction $transaction) =>
-    //             $transaction->companyId() === $user->companyId()
-    //             && $transaction->cardId() === $card->id()
-    //             && $transaction->authorizationId() !== null
-    //             && $transaction->type() === TransactionTypeEnum::RESERVE
-    //             && $transaction->amount()->toCents() === -60000
-    //             && $transaction->limitMonth() === '2026-09'
-    //     ));
 
     $input = AuthorizeTransactionInputBuilder::make()
         ->withCardToken($card->cardToken())
@@ -599,19 +581,6 @@ it('A9: reserves the authorization amount on the card and company balance when a
         ->shouldReceive('reserve')
         ->once()
         ->andReturn(true);
-    // $transactionRepository
-    //     ->shouldReceive('save')
-    //     ->once()
-    //     ->with(Mockery::on(
-    //         fn (Transaction $transaction) =>
-    //             $transaction->companyId() === $user->companyId()
-    //             && $transaction->cardId() === $card->id()
-    //             && $transaction->authorizationId() !== null
-    //             && $transaction->type() === TransactionTypeEnum::RESERVE
-    //             && $transaction->amount()->toCents() === -60000
-    //             && $transaction->limitMonth() === '2026-09'
-    //             && $transaction->reference() !== ''
-    //     ));
 
     $useCase = new AuthorizeTransaction(
         authorizationRepository: $authorizationRepository,
@@ -696,10 +665,6 @@ it('A10: does not approve authorizations beyond the available balance under conc
 
             return true;
         });
-
-    // $authorizationRepository
-    //     ->shouldReceive('save')
-    //     ->times(5);
 
     $useCase = new AuthorizeTransaction(
         authorizationRepository: $authorizationRepository,
