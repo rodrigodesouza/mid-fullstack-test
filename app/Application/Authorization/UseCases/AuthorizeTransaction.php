@@ -94,16 +94,14 @@ final class AuthorizeTransaction
         );
 
         // A9 — Registra uma única reserva no ledger para a autorização aprovada.
-        // A10 — A reserva deve ser confirmada atomicamente sob concorrência.
-        if (! $this->transactionRepository->reserve($reservation)) {
+        // A10 — Autorização e reserva devem ser confirmadas atomicamente sob concorrência.
+        if (! $this->transactionRepository->reserve($authorization, $reservation)) {
             return new AuthorizationResult(
                 decision: AuthorizationDecisionEnum::DECLINED,
                 reason: AuthorizationReasonEnum::COMPANY_BALANCE_EXCEEDED,
                 authorization: null,
             );
         }
-
-        $this->authorizationRepository->save($authorization);
 
         return new AuthorizationResult(
             decision: AuthorizationDecisionEnum::APPROVED,
@@ -197,7 +195,13 @@ final class AuthorizeTransaction
         $purchaseLimit = $this->cardLimitsRepository
             ->purchaseLimitFor($card->id());
 
-        if (! $input->amount->isGreaterThan($purchaseLimit)) {
+        // if (! $input->amount->isGreaterThan($purchaseLimit)) {
+        //     return null;
+        // }
+        if (
+            $purchaseLimit === null
+            || ! $input->amount->isGreaterThan($purchaseLimit)
+        ) {
             return null;
         }
 

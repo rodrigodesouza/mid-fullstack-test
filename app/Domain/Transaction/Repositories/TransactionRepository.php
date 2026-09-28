@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Transaction\Repositories;
 
+use App\Domain\Authorization\Entity\Authorization;
 use App\Domain\Transaction\Entity\Transaction;
 
 interface TransactionRepository
@@ -15,5 +16,8 @@ interface TransactionRepository
      * Retorna falso quando a reserva não puder ser realizada porque
      * o saldo disponível da empresa/cartão foi consumido simultaneamente.
      */
-    public function reserve(Transaction $transaction): bool;
+    public function reserve(
+        Authorization $authorization,
+        Transaction $transaction,
+    ): bool;
 }

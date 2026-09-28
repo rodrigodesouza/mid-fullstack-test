@@ -8,7 +8,7 @@ use App\Domain\Shared\ValueObjects\Money;
 
 interface CardLimitsRepository
 {
-    public function purchaseLimitFor(int $cardId): Money;
+    public function purchaseLimitFor(int $cardId): ?Money;
 
     public function remainingForMonth(
         int $cardId,
