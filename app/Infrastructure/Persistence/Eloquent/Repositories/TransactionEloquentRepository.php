@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 
 use App\Domain\Authorization\Entity\Authorization;
+use App\Domain\Shared\ValueObjects\Money;
 use App\Domain\Transaction\Entity\Transaction;
+use App\Domain\Transaction\Enums\TransactionTypeEnum;
 use App\Domain\Transaction\Repositories\TransactionRepository;
 use App\Infrastructure\Persistence\Eloquent\Models\AuthorizationModel;
 use App\Infrastructure\Persistence\Eloquent\Models\CardModel;
@@ -87,6 +89,21 @@ final class TransactionEloquentRepository implements TransactionRepository
 
             return true;
         });
+    }
+
+    public function capturedAmountForAuthorization(string $authorizationId): Money
+    {
+        $amount = TransactionModel::query()
+            ->where('authorization_id', $authorizationId)
+            ->where('type', TransactionTypeEnum::CAPTURE->value)
+            ->sum('amount_cents');
+
+        return Money::fromCents(abs((int) $amount));
+    }
+
+    public function hasFinalCapture(string $authorizationId): bool
+    {
+        return false;
     }
 
     /**
