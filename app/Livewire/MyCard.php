@@ -7,6 +7,7 @@ namespace App\Livewire;
 use App\Application\Card\GetAvailableCard;
 use App\Application\Card\GetCardStatement;
 use App\Infrastructure\Persistence\Eloquent\Models\CardModel;
+use Illuminate\View\View;
 use Livewire\Component;
 
 final class MyCard extends Component
@@ -40,7 +41,7 @@ final class MyCard extends Component
         );
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.my-card')
             ->layout('components.layouts.employee');

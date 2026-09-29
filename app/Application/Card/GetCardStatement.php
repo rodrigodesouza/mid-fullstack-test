@@ -41,7 +41,6 @@ final readonly class GetCardStatement
 
             $statement[] = [
                 'occurred_at' => $transaction['occurred_at'],
-                'type' => $transaction['type'],
                 'amount_cents' => $transaction['amount_cents'],
                 'reference' => $transaction['reference'],
                 'limit_remaining_after_cents' => $limitRemaining,

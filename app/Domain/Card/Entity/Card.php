@@ -14,16 +14,15 @@ use InvalidArgumentException;
 final class Card
 {
     /**
-     * @property-read Money $monthlyLimitCents
-     * monthlyLimitCents: limite mensal nominal do cartão, armazenado em centavos.
-     * É obrigatório e deve ser maior que zero. O limite restante (limit_remaining) não fica armazenado no cartão;
-     * ele é derivado das transações do período.
-     * @property-read string $cardToken
-     * Identificador/token usado pela rede para identificar o cartão sem expor seus dados reais.
-     * @property-read CardStatusEnum $status
-     * Estado do cartão. Os valores usados pelo domínio são`active`e`blocked`. Um cartão`blocked`não pode gerar uma authorization aprovada.
+     * Limite mensal nominal do cartão, armazenado em centavos.
+     * É obrigatório e deve ser maior que zero. O limite restante
+     * é derivado das transações do período.
      *
-     * @param  array<int, CardMccRule>  $mccRules
+     * @property-read Money $monthlyLimitCents
+     * @property-read string $cardToken
+     * @property-read CardStatusEnum $status
+     *
+     * @param  array<int, array{mcc?: string, rule?: string}>  $mccRules
      */
     public function __construct(private readonly int $id, private readonly int $userId, private readonly string $cardToken, private readonly Money $monthlyLimitCents, private CardStatusEnum $status, private readonly DateTimeImmutable $createdAt, private DateTimeImmutable $updatedAt, private readonly ?Money $purchaseLimitCents = null, private readonly array $mccRules = [])
     {
@@ -75,8 +74,11 @@ final class Card
 
     public function isMccBlocked(string $mcc): bool
     {
-        return array_any($this->mccRules, fn (array $rule) => ($rule['mcc'] ?? null) === $mcc
-        && ($rule['rule'] ?? null) === CardMccRuleEnum::BLOCKED->value);
+        return array_any(
+            $this->mccRules,
+            fn (array $rule): bool => ($rule['mcc'] ?? null) === $mcc
+                && ($rule['rule'] ?? null) === CardMccRuleEnum::BLOCKED->value
+        );
     }
 
     public function createdAt(): DateTimeImmutable
