@@ -28,7 +28,7 @@ jobs:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-pest
       cancel-in-progress: true
     services:
-      postgres:
+      passa-db:
         image: postgres:18-alpine
         env:
           POSTGRES_USER: postgres
