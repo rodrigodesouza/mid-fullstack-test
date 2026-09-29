@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Providers\Filament;
 
+use App\Filament\Admin\Widgets\CompanyBalance;
 use App\Filament\Shared\Pages\LoginPage;
+use App\Http\Middleware\CheckRole;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -43,6 +45,7 @@ final class AdminPanelProvider extends PanelProvider
             ->sidebarFullyCollapsibleOnDesktop()
             ->widgets([
                 AccountWidget::class,
+                CompanyBalance::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -57,6 +60,7 @@ final class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                CheckRole::class.':admin',
             ]);
     }
 }

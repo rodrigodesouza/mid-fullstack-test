@@ -8,6 +8,10 @@ help: ## Show available commands
 setup: ## Install dependencies, migrate, seed and build assets
 	@composer run-script setup
 
+.PHONY: setup-docker
+setup-docker: # Comando específico para quem vai rodar via Docker
+	@docker-compose exec passa-app composer run-script setup
+
 .PHONY: pint
 pint: ## Run Pint code style fixer
 	@XDEBUG_MODE=off $(CURDIR)/vendor/bin/pint --parallel
@@ -26,11 +30,11 @@ test-rector: ## Run Rector in test mode
 
 .PHONY: phpstan
 phpstan: ## Run PHPStan
-	@$(CURDIR)/vendor/bin/phpstan analyse --ansi
+	@$(CURDIR)/vendor/bin/phpstan analyse --ansi --memory-limit=512M
 
 .PHONY: test-phpstan
 test-phpstan: ## Run PHPStan in test mode
-	@$(CURDIR)/vendor/bin/phpstan analyse --ansi
+	@$(CURDIR)/vendor/bin/phpstan analyse --ansi --memory-limit=512M
 
 .PHONY: format
 format: rector pint ## Run Rector and Pint and fix the source code
@@ -65,3 +69,7 @@ env-down: ## Stop the development environment and remove volumes
 .PHONY: dev
 dev: ## Start the server, queue, logs and Vite
 	@composer run-script dev
+
+.PHONY: dev-docker
+dev-docker: ## Start the server, queue, logs and Vite
+	@docker compose exec passa-app composer run-script dev

@@ -14,5 +14,9 @@ export default defineConfig({
         watch: {
             ignored: ['**/storage/framework/views/**'],
         },
+        host: '0.0.0.0', // Permite que o container responda para fora deles
+        hmr: {
+            host: 'localhost', // Faz o Blade renderizar os links apontando para o seu navegador
+        },
     },
 });

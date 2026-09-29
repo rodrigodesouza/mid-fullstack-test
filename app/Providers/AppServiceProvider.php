@@ -4,10 +4,28 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Authorization\Repositories\AuthorizationRepository;
+use App\Domain\Card\Repositories\CardLimitsRepository;
+use App\Domain\Card\Repositories\CardRepository;
+use App\Domain\Company\Repositories\CompanyBalanceRepository;
+use App\Domain\Event\Repositories\EventRepository;
+use App\Domain\Transaction\Repositories\TransactionRepository;
+use App\Domain\User\Repositories\UserRepository;
+use App\Events\AuthorizationApproved;
+use App\Infrastructure\Persistence\Eloquent\Repositories\AuthorizationEloquentRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\CardEloquentRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\CardLimitsEloquentRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\CompanyEloquentRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\EventEloquentRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\TransactionEloquentRepository;
+use App\Infrastructure\Persistence\Eloquent\Repositories\UserEloquentRepository;
+use App\Listeners\ProcessPendingCancellation;
+use App\Listeners\ProcessPendingCapture;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -21,6 +39,39 @@ final class AppServiceProvider extends ServiceProvider
     {
         $this->registerTelescope();
         $this->registerDebugbar();
+
+        $this->app->bind(
+            CardRepository::class,
+            CardEloquentRepository::class,
+        );
+
+        $this->app->bind(
+            UserRepository::class,
+            UserEloquentRepository::class,
+        );
+
+        $this->app->bind(
+            CompanyBalanceRepository::class,
+            CompanyEloquentRepository::class,
+        );
+
+        $this->app->bind(
+            CardLimitsRepository::class,
+            CardLimitsEloquentRepository::class,
+        );
+        $this->app->bind(
+            TransactionRepository::class,
+            TransactionEloquentRepository::class,
+        );
+
+        $this->app->bind(
+            AuthorizationRepository::class,
+            AuthorizationEloquentRepository::class,
+        );
+        $this->app->bind(
+            EventRepository::class,
+            EventEloquentRepository::class,
+        );
     }
 
     /**
@@ -33,6 +84,16 @@ final class AppServiceProvider extends ServiceProvider
         $this->configureDates();
         $this->configureVite();
         $this->configureUrl();
+
+        Event::listen(
+            AuthorizationApproved::class,
+            ProcessPendingCapture::class,
+        );
+
+        Event::listen(
+            AuthorizationApproved::class,
+            ProcessPendingCancellation::class,
+        );
     }
 
     /**

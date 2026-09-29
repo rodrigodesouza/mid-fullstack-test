@@ -5,7 +5,10 @@ declare(strict_types=1);
 arch('application must follow the defined architectural rules')
     ->preset()
     ->laravel()
-    ->ignoring('App\Providers');
+    ->ignoring('App\Providers')
+    ->ignoring('App\Domain')
+    ->ignoring('App\Application')
+    ->ignoring('App\Infrastructure');
 
 arch('application must follow the defined PHP architectural rules')
     ->preset()

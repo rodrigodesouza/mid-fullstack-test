@@ -1,4 +1,22 @@
 services:
+  passa-app:
+    build:
+      context: .
+      dockerfile: docker/php.Dockerfile
+    container_name: passa-app
+    restart: no
+    hostname: dev
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - passa-db
+      - passa-redis
+    command: php -S 0.0.0.0:8000 -t public
+    ports:
+      - "8000:8000"
+      - "5173:5173" # Porta do Vite (Crucial para o CSS/JS carregar)
+    networks:
+      - dev-passa
   passa-db:
     build:
       dockerfile: docker/postgres.Dockerfile
