@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Tests\Support\Builders;
 
 use App\Domain\Card\Entity\Card;
+use App\Domain\Card\Enums\CardMccRuleEnum;
 use App\Domain\Card\Enums\CardStatusEnum;
 use App\Domain\Shared\ValueObjects\Money;
+use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 
 final class CardBuilder
@@ -17,21 +19,23 @@ final class CardBuilder
 
     private string $cardToken = 'tok_ana';
 
+    private array $mccRules = [];
+
     private Money $monthlyLimitCents;
 
     private ?Money $purchaseLimitCents = null;
 
     private CardStatusEnum $status = CardStatusEnum::ACTIVE;
 
-    private DateTimeImmutable $createdAt;
+    private readonly DateTimeImmutable $createdAt;
 
-    private DateTimeImmutable $updatedAt;
+    private readonly DateTimeImmutable $updatedAt;
 
     private function __construct()
     {
         $this->monthlyLimitCents = Money::fromCents(100000);
-        $this->createdAt = new DateTimeImmutable('2026-09-01T00:00:00Z');
-        $this->updatedAt = new DateTimeImmutable('2026-09-01T00:00:00Z');
+        $this->createdAt = CarbonImmutable::parse('2026-09-01T00:00:00Z');
+        $this->updatedAt = CarbonImmutable::parse('2026-09-01T00:00:00Z');
     }
 
     public static function make(): self
@@ -81,6 +85,17 @@ final class CardBuilder
         return $this;
     }
 
+    public function withBlockedMcc(string $mcc): self
+    {
+        $this->mccRules[] = [
+            'mcc' => $mcc,
+            'rule' => CardMccRuleEnum::BLOCKED->value,
+            'tolerance_percent' => 0,
+        ];
+
+        return $this;
+    }
+
     public function build(): Card
     {
         return new Card(
@@ -92,6 +107,7 @@ final class CardBuilder
             createdAt: $this->createdAt,
             updatedAt: $this->updatedAt,
             purchaseLimitCents: $this->purchaseLimitCents,
+            mccRules: $this->mccRules,
         );
     }
 }

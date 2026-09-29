@@ -64,7 +64,7 @@ final class EventEloquentRepository implements EventRepository
             ->where('authorization_reference', $authorizationReference)
             ->where('status', 'pending')
             ->orderBy('sequence')
-            ->orderBy('occurred_at')
+            ->oldest('occurred_at')
             ->get()
             ->map(fn (EventModel $model) => $this->toDomain($model))
             ->all();

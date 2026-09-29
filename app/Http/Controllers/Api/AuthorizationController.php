@@ -13,10 +13,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-final class AuthorizationController
+final readonly class AuthorizationController
 {
     public function __construct(
-        private readonly AuthorizeTransaction $authorizeTransaction,
+        private AuthorizeTransaction $authorizeTransaction,
     ) {}
 
     public function store(Request $request): JsonResponse
@@ -54,7 +54,7 @@ final class AuthorizationController
             array_filter([
                 'decision' => $result->decision->value,
                 'reason' => $result->reason?->value,
-            ], fn ($value) => $value !== null),
+            ], fn (?string $value) => $value !== null),
             Response::HTTP_ACCEPTED,
         );
     }

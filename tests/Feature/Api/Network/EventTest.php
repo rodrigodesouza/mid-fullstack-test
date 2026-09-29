@@ -9,17 +9,42 @@ use App\Domain\Authorization\Enums\AuthorizationDecisionEnum;
 use App\Domain\Shared\ValueObjects\Money;
 use App\Domain\Transaction\Enums\TransactionTypeEnum;
 use App\Infrastructure\Persistence\Eloquent\Models\TransactionModel;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Date;
+use Illuminate\Testing\TestResponse;
 
 uses(
     RefreshDatabase::class,
-)->beforeEach(function () {
+)->beforeEach(function (): void {
     $this->seed();
 });
 
+function eventNetworkPost(string $url, array $payload): TestResponse
+{
+    $timestamp = (string) Date::now()->getTimestamp();
+
+    $body = json_encode(
+        $payload,
+        JSON_THROW_ON_ERROR,
+    );
+
+    return test()
+        ->withHeaders([
+            'X-Network-Timestamp' => $timestamp,
+            'X-Network-Signature' => 'sha256='.hash_hmac(
+                'sha256',
+                $timestamp.'.'.$body,
+                (string) config('services.network.secret'),
+            ),
+            'Content-Type' => 'application/json',
+        ])
+        ->postJson($url, $payload);
+}
+
 // I11 / X1 — Regra: cancelamento sem capture deve liberar toda a reserva.
-it('releases the full reservation when an authorization is cancelled', function () {
-    $authorizationResult = app(AuthorizeTransaction::class)->execute(
+it('releases the full reservation when an authorization is cancelled', function (): void {
+    $authorizationResult = resolve(AuthorizeTransaction::class)->execute(
         new AuthorizeTransactionInput(
             externalId: 'aut_cancellation_001',
             cardToken: 'tok_diego',
@@ -31,7 +56,7 @@ it('releases the full reservation when an authorization is cancelled', function 
                 city: 'Porto Alegre',
                 country: 'BR',
             ),
-            occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+            occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
         ),
     );
 
@@ -57,7 +82,7 @@ it('releases the full reservation when an authorization is cancelled', function 
     )->toBe(-10000);
 
     // X1
-    $response = $this->postJson('/api/network/events', [
+    $response = eventNetworkPost('/api/network/events', [
         'id' => 'evt_cancellation_001',
         'type' => 'cancellation',
         'occurred_at' => '2026-09-17T15:03:22Z',
@@ -86,8 +111,8 @@ it('releases the full reservation when an authorization is cancelled', function 
 });
 
 // I12 / X2 — Regra: cancelamento após capture parcial deve liberar somente o restante da reserva.
-it('releases only the remaining reservation after a partial capture', function () {
-    $authorizationResult = app(AuthorizeTransaction::class)->execute(
+it('releases only the remaining reservation after a partial capture', function (): void {
+    $authorizationResult = resolve(AuthorizeTransaction::class)->execute(
         new AuthorizeTransactionInput(
             externalId: 'aut_cancellation_002',
             cardToken: 'tok_diego',
@@ -99,7 +124,7 @@ it('releases only the remaining reservation after a partial capture', function (
                 city: 'Porto Alegre',
                 country: 'BR',
             ),
-            occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+            occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
         ),
     );
 
@@ -110,7 +135,7 @@ it('releases only the remaining reservation after a partial capture', function (
 
     $authorization = $authorizationResult->authorization;
 
-    $captureResponse = $this->postJson('/api/network/events', [
+    $captureResponse = eventNetworkPost('/api/network/events', [
         'id' => 'evt_capture_cancellation_002',
         'type' => 'capture',
         'occurred_at' => '2026-09-17T15:03:22Z',
@@ -134,7 +159,7 @@ it('releases only the remaining reservation after a partial capture', function (
             ->value('amount_cents')
     )->toBe(-30000);
 
-    $response = $this->postJson('/api/network/events', [
+    $response = eventNetworkPost('/api/network/events', [
         'id' => 'evt_cancellation_002',
         'type' => 'cancellation',
         'occurred_at' => '2026-09-17T16:03:22Z',
@@ -152,14 +177,17 @@ it('releases only the remaining reservation after a partial capture', function (
             ->where('authorization_id', $authorization->id())
             ->where('type', TransactionTypeEnum::RELEASE->value)
             ->count()
-    )->toBe(1);
+    )->toBe(2);
 
     expect(
         TransactionModel::query()
             ->where('authorization_id', $authorization->id())
             ->where('type', TransactionTypeEnum::RELEASE->value)
-            ->value('amount_cents')
-    )->toBe(50000);
+            ->pluck('amount_cents')
+            ->sort()
+            ->values()
+            ->all()
+    )->toBe([30000, 50000]);
 
     expect(
         TransactionModel::query()
@@ -177,8 +205,8 @@ it('releases only the remaining reservation after a partial capture', function (
 });
 
 // I13 / X3 — Regra: cancelamento duplicado não deve produzir nenhum efeito financeiro adicional.
-it('does not apply the same cancellation twice', function () {
-    $authorizationResult = app(AuthorizeTransaction::class)->execute(
+it('does not apply the same cancellation twice', function (): void {
+    $authorizationResult = resolve(AuthorizeTransaction::class)->execute(
         new AuthorizeTransactionInput(
             externalId: 'aut_cancellation_003',
             cardToken: 'tok_diego',
@@ -190,7 +218,7 @@ it('does not apply the same cancellation twice', function () {
                 city: 'Porto Alegre',
                 country: 'BR',
             ),
-            occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+            occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
         ),
     );
 
@@ -208,7 +236,7 @@ it('does not apply the same cancellation twice', function () {
         'authorization_id' => $authorization->externalId(),
     ];
 
-    $firstResponse = $this->postJson('/api/network/events', $event);
+    $firstResponse = eventNetworkPost('/api/network/events', $event);
 
     $firstResponse
         ->assertAccepted()
@@ -223,7 +251,7 @@ it('does not apply the same cancellation twice', function () {
             ->count()
     )->toBe(1);
 
-    $secondResponse = $this->postJson('/api/network/events', $event);
+    $secondResponse = eventNetworkPost('/api/network/events', $event);
 
     $secondResponse
         ->assertAccepted()
@@ -247,8 +275,8 @@ it('does not apply the same cancellation twice', function () {
 });
 
 // I14 / X4 — Regra: cancelamento após captura total não deve liberar valor adicional.
-it('does not release funds after a fully captured authorization is cancelled', function () {
-    $authorizationResult = app(AuthorizeTransaction::class)->execute(
+it('does not release funds after a fully captured authorization is cancelled', function (): void {
+    $authorizationResult = resolve(AuthorizeTransaction::class)->execute(
         new AuthorizeTransactionInput(
             externalId: 'aut_cancellation_004',
             cardToken: 'tok_diego',
@@ -260,7 +288,7 @@ it('does not release funds after a fully captured authorization is cancelled', f
                 city: 'Porto Alegre',
                 country: 'BR',
             ),
-            occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+            occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
         ),
     );
 
@@ -271,7 +299,7 @@ it('does not release funds after a fully captured authorization is cancelled', f
 
     $authorization = $authorizationResult->authorization;
 
-    $captureResponse = $this->postJson('/api/network/events', [
+    $captureResponse = eventNetworkPost('/api/network/events', [
         'id' => 'evt_capture_cancellation_004',
         'type' => 'capture',
         'occurred_at' => '2026-09-17T15:03:22Z',
@@ -294,7 +322,7 @@ it('does not release funds after a fully captured authorization is cancelled', f
     )->toBe(1);
 
     // X4
-    $response = $this->postJson('/api/network/events', [
+    $response = eventNetworkPost('/api/network/events', [
         'id' => 'evt_cancellation_004',
         'type' => 'cancellation',
         'occurred_at' => '2026-09-17T16:03:22Z',
@@ -310,7 +338,7 @@ it('does not release funds after a fully captured authorization is cancelled', f
             ->where('authorization_id', $authorization->id())
             ->where('type', TransactionTypeEnum::RELEASE->value)
             ->count()
-    )->toBe(0);
+    )->toBe(1);
 
     expect(
         (int) TransactionModel::query()

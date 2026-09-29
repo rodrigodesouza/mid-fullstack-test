@@ -5,14 +5,14 @@ declare(strict_types=1);
 use App\Domain\Shared\ValueObjects\Money;
 
 // Testa se o objeto Money pode ser instanciado via centavos e recupera o valor corretamente
-test('it can be instantiated from cents and return cents', function () {
+test('it can be instantiated from cents and return cents', function (): void {
     $money = Money::fromCents(15050);
 
     expect($money->toCents())->toBe(15050);
 });
 
 // Testa a adição de dois valores monetários garantindo que o objeto original não é alterado (imutabilidade)
-test('it can add two money values immutably', function () {
+test('it can add two money values immutably', function (): void {
     $amount1 = Money::fromCents(1000);
     $amount2 = Money::fromCents(500);
 
@@ -23,7 +23,7 @@ test('it can add two money values immutably', function () {
 });
 
 // Testa a subtração de dois valores monetários mantendo a imutabilidade
-test('it can subtract two money values immutably', function () {
+test('it can subtract two money values immutably', function (): void {
     $amount1 = Money::fromCents(1000);
     $amount2 = Money::fromCents(300);
 
@@ -34,7 +34,7 @@ test('it can subtract two money values immutably', function () {
 });
 
 // Testa se dois objetos Money com o mesmo valor são considerados iguais e diferentes quando os valores mudam
-test('it can check equality between money values', function () {
+test('it can check equality between money values', function (): void {
     $money1 = Money::fromCents(1000);
     $money2 = Money::fromCents(1000);
     $money3 = Money::fromCents(2000);
@@ -44,7 +44,7 @@ test('it can check equality between money values', function () {
 });
 
 // Testa as validações de comparação de maior ou igual entre valores monetários
-test('it can evaluate if money is greater than or equal to another', function () {
+test('it can evaluate if money is greater than or equal to another', function (): void {
     $ten = Money::fromCents(1000);
     $twenty = Money::fromCents(2000);
     $anotherTen = Money::fromCents(1000);
@@ -55,7 +55,7 @@ test('it can evaluate if money is greater than or equal to another', function ()
 });
 
 // Testa se o método identifica corretamente quando o valor monetário é exatamente zero
-test('it can check if money is zero', function () {
+test('it can check if money is zero', function (): void {
     $zero = Money::fromCents(0);
     $notZero = Money::fromCents(100);
 

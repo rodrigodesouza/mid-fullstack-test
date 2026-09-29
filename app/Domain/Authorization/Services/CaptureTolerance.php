@@ -6,7 +6,7 @@ namespace App\Domain\Authorization\Services;
 
 final class CaptureTolerance
 {
-    private const TOLERANCE_PERCENTAGES = [
+    private const array TOLERANCE_PERCENTAGES = [
         '7011' => 20,
         '5812' => 20,
         '5541' => 20,

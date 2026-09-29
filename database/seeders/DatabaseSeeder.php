@@ -31,7 +31,7 @@ final class DatabaseSeeder extends Seeder
             'name' => 'Acme',
         ]);
 
-        $marina = UserModel::query()->create([
+        UserModel::query()->create([
             'company_id' => $company->id,
             'name' => 'Marina',
             'email' => 'marina@acme.test',
@@ -79,7 +79,7 @@ final class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
-        $brunoCard = CardModel::query()->create([
+        CardModel::query()->create([
             'user_id' => $bruno->id,
             'card_token' => 'tok_bruno',
             'monthly_limit_cents' => 50_000,

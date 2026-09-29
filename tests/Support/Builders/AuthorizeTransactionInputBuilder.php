@@ -7,6 +7,7 @@ namespace Tests\Support\Builders;
 use App\Application\Authorization\DTO\AuthorizeTransactionInput;
 use App\Application\Authorization\DTO\MerchantInput;
 use App\Domain\Shared\ValueObjects\Money;
+use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 
 final class AuthorizeTransactionInputBuilder
@@ -35,9 +36,7 @@ final class AuthorizeTransactionInputBuilder
             country: 'BR',
         );
 
-        $this->occurredAt = new DateTimeImmutable(
-            '2026-09-17T14:03:22Z'
-        );
+        $this->occurredAt = CarbonImmutable::parse('2026-09-17T14:03:22Z');
     }
 
     public static function make(): self

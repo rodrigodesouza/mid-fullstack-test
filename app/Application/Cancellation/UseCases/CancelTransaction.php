@@ -5,20 +5,22 @@ declare(strict_types=1);
 namespace App\Application\Cancellation\UseCases;
 
 use App\Application\Cancellation\DTO\CancelTransactionInput;
+use App\Domain\Authorization\Entity\Authorization;
 use App\Domain\Authorization\Repositories\AuthorizationRepository;
 use App\Domain\Event\Entity\Event;
 use App\Domain\Event\Repositories\EventRepository;
 use App\Domain\Transaction\Entity\Transaction;
 use App\Domain\Transaction\Enums\TransactionTypeEnum;
 use App\Domain\Transaction\Repositories\TransactionRepository;
+use DateTimeZone;
 use Illuminate\Support\Str;
 
-final class CancelTransaction
+final readonly class CancelTransaction
 {
     public function __construct(
-        private readonly AuthorizationRepository $authorizationRepository,
-        private readonly TransactionRepository $transactionRepository,
-        private readonly EventRepository $eventRepository,
+        private AuthorizationRepository $authorizationRepository,
+        private TransactionRepository $transactionRepository,
+        private EventRepository $eventRepository,
     ) {}
 
     public function execute(CancelTransactionInput $input): bool
@@ -27,14 +29,14 @@ final class CancelTransaction
         $existingEvent = $this->eventRepository
             ->findByExternalId($input->externalId);
 
-        if ($existingEvent !== null && $existingEvent->status() !== 'pending') {
+        if ($existingEvent instanceof Event && $existingEvent->status() !== 'pending') {
             return true;
         }
 
         $authorization = $this->authorizationRepository
             ->findByExternalId($input->authorizationId);
 
-        if ($authorization === null) {
+        if (! $authorization instanceof Authorization) {
             return false;
         }
 
@@ -52,9 +54,7 @@ final class CancelTransaction
             status: 'pending',
         );
 
-        if ($existingEvent === null) {
-            $this->eventRepository->save($event);
-        }
+        $this->eventRepository->save($event);
 
         $captured = $this->transactionRepository
             ->capturedAmountForAuthorization($authorization->id());
@@ -71,7 +71,11 @@ final class CancelTransaction
                 type: TransactionTypeEnum::RELEASE,
                 amount: $remaining,
                 occurredAt: $input->occurredAt,
-                limitMonth: $input->occurredAt->format('Y-m'),
+                // limitMonth: $input->occurredAt->format('Y-m'),
+                limitMonth: $authorization
+                    ->occurredAt()
+                    ->setTimezone(new DateTimeZone('America/Sao_Paulo'))
+                    ->format('Y-m'),
                 reference: $input->externalId,
             );
 

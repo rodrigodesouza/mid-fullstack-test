@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Capture\UseCases;
 
 use App\Application\Capture\DTO\CaptureTransactionInput;
+use App\Domain\Authorization\Entity\Authorization;
 use App\Domain\Authorization\Enums\AuthorizationDecisionEnum;
 use App\Domain\Authorization\Repositories\AuthorizationRepository;
 use App\Domain\Authorization\Services\CaptureTolerance;
@@ -14,29 +15,46 @@ use App\Domain\Shared\ValueObjects\Money;
 use App\Domain\Transaction\Entity\Transaction;
 use App\Domain\Transaction\Enums\TransactionTypeEnum;
 use App\Domain\Transaction\Repositories\TransactionRepository;
+use DateTimeZone;
+use Illuminate\Support\Str;
 
-final class CaptureTransaction
+final readonly class CaptureTransaction
 {
     public function __construct(
-        private readonly AuthorizationRepository $authorizationRepository,
-        private readonly TransactionRepository $transactionRepository,
-        private readonly CaptureTolerance $captureTolerance,
-        private readonly EventRepository $eventRepository,
+        private AuthorizationRepository $authorizationRepository,
+        private TransactionRepository $transactionRepository,
+        private CaptureTolerance $captureTolerance,
+        private EventRepository $eventRepository,
     ) {}
 
     public function execute(CaptureTransactionInput $input): bool
     {
-        $existingEvent = $this->eventRepository->findByExternalId($input->externalId);
-        if ($existingEvent !== null && $existingEvent->status() !== 'pending') {
+        $existingEvent = $this->eventRepository->findByExternalId(
+            $input->externalId,
+        );
+
+        /*
+         * Evento já processado = operação idempotente.
+         */
+        if (
+            $existingEvent instanceof Event
+            && $existingEvent->status() !== 'pending'
+        ) {
             return true;
         }
 
         $authorization = $this->authorizationRepository
             ->findByExternalId($input->authorizationId);
 
-        if ($authorization === null) {
+        /*
+         * Capture pode chegar antes da authorization.
+         *
+         * Nesse cenário o evento é persistido como pending e nenhum
+         * movimento financeiro é criado.
+         */
+        if (! $authorization instanceof Authorization) {
             $event = new Event(
-                id: (string) \Illuminate\Support\Str::uuid(),
+                id: $existingEvent?->id() ?? (string) Str::uuid(),
                 externalId: $input->externalId,
                 authorizationReference: $input->authorizationId,
                 authorizationId: null,
@@ -49,7 +67,11 @@ final class CaptureTransaction
                 status: 'pending',
             );
 
-            $this->eventRepository->save($event);
+            if ($existingEvent instanceof Event) {
+                $this->eventRepository->update($event);
+            } else {
+                $this->eventRepository->save($event);
+            }
 
             return true;
         }
@@ -67,16 +89,17 @@ final class CaptureTransaction
         }
 
         $tolerancePercentage = $this->captureTolerance->percentageFor(
-            $authorization->mcc()
+            $authorization->mcc(),
         );
 
         $maximumCaptureAmount = $authorization->amount()->add(
             Money::fromCents(
                 intdiv(
-                    $authorization->amount()->toCents() * $tolerancePercentage,
-                    100
-                )
-            )
+                    $authorization->amount()->toCents()
+                    * $tolerancePercentage,
+                    100,
+                ),
+            ),
         );
 
         $capturedAmount = $this->transactionRepository
@@ -92,24 +115,147 @@ final class CaptureTransaction
             return false;
         }
 
-        $capture = new Transaction(
-            id: (string) \Illuminate\Support\Str::uuid(),
-            companyId: $authorization->companyId(),
-            cardId: $authorization->cardId(),
-            authorizationId: $authorization->id(),
-            eventId: null,
-            type: TransactionTypeEnum::CAPTURE,
-            amount: $input->amount->negate(),
-            occurredAt: $input->occurredAt,
-            limitMonth: $input->occurredAt->format('Y-m'),
-            reference: $input->externalId,
-        );
-
-        $this->transactionRepository->save($capture);
+        /*
+         * IMPORTANTE:
+         *
+         * O evento precisa existir no banco ANTES das transactions,
+         * pois transactions.event_id possui FK para events.id.
+         */
+        $eventId = $existingEvent?->id() ?? (string) Str::uuid();
 
         $event = new Event(
-            // id: (string) \Illuminate\Support\Str::uuid(),
-            id: $existingEvent?->id() ?? (string) \Illuminate\Support\Str::uuid(),
+            id: $eventId,
+            externalId: $input->externalId,
+            authorizationReference: $input->authorizationId,
+            authorizationId: $authorization->id(),
+            type: 'capture',
+            amountCents: $input->amount->toCents(),
+            currency: $input->currency,
+            sequence: $input->sequence,
+            final: $input->final,
+            occurredAt: $input->occurredAt,
+            status: 'pending',
+        );
+
+        if ($existingEvent instanceof Event) {
+            $this->eventRepository->update($event);
+        } else {
+            $this->eventRepository->save($event);
+        }
+
+        $saoPauloTimezone = new DateTimeZone('America/Sao_Paulo');
+
+        $authorizationMonth = $authorization
+            ->occurredAt()
+            ->setTimezone($saoPauloTimezone)
+            ->format('Y-m');
+
+        $captureMonth = $input->occurredAt
+            ->setTimezone($saoPauloTimezone)
+            ->format('Y-m');
+
+        /*
+         * Valor da reserva que ainda permanece bloqueado.
+         */
+        $remainingReservedCents = max(
+            0,
+            $authorization->amount()->toCents()
+            - $capturedAmount->toCents(),
+        );
+
+        /*
+         * Primeiro liberamos a parte da captura coberta pela reserva.
+         */
+        $releaseCents = min(
+            $input->amount->toCents(),
+            $remainingReservedCents,
+        );
+
+        if ($releaseCents > 0) {
+            $release = new Transaction(
+                id: (string) Str::uuid(),
+                companyId: $authorization->companyId(),
+                cardId: $authorization->cardId(),
+                authorizationId: $authorization->id(),
+                eventId: $eventId,
+                type: TransactionTypeEnum::RELEASE,
+                amount: Money::fromCents($releaseCents),
+                occurredAt: $input->occurredAt,
+                limitMonth: $authorizationMonth,
+                reference: $input->externalId,
+            );
+
+            $this->transactionRepository->save($release);
+        }
+
+        /*
+         * Se a captura ocorrer no mesmo mês da autorização, todo o
+         * valor pertence ao mês da autorização.
+         *
+         * Se ocorrer em outro mês, somente o valor ainda coberto pela
+         * reserva pertence ao mês da autorização.
+         */
+        $captureInAuthorizationMonth = $captureMonth === $authorizationMonth
+            ? $input->amount->toCents()
+            : min(
+                $input->amount->toCents(),
+                $remainingReservedCents,
+            );
+
+        if ($captureInAuthorizationMonth > 0) {
+            $capture = new Transaction(
+                id: (string) Str::uuid(),
+                companyId: $authorization->companyId(),
+                cardId: $authorization->cardId(),
+                authorizationId: $authorization->id(),
+                eventId: $eventId,
+                type: TransactionTypeEnum::CAPTURE,
+                amount: Money::fromCents(
+                    $captureInAuthorizationMonth,
+                )->negate(),
+                occurredAt: $input->occurredAt,
+                limitMonth: $authorizationMonth,
+                reference: $input->externalId,
+            );
+
+            $this->transactionRepository->save($capture);
+        }
+
+        /*
+         * Excedente em relação ao valor ainda reservado.
+         *
+         * Quando a captura acontece em outro mês, esse excedente
+         * consome o limite do mês da captura.
+         */
+        $excessCents = $input->amount->toCents()
+            - $captureInAuthorizationMonth;
+
+        if (
+            $excessCents > 0
+            && $captureMonth !== $authorizationMonth
+        ) {
+            $captureExcess = new Transaction(
+                id: (string) Str::uuid(),
+                companyId: $authorization->companyId(),
+                cardId: $authorization->cardId(),
+                authorizationId: $authorization->id(),
+                eventId: $eventId,
+                type: TransactionTypeEnum::CAPTURE,
+                amount: Money::fromCents($excessCents)->negate(),
+                occurredAt: $input->occurredAt,
+                limitMonth: $captureMonth,
+                reference: $input->externalId,
+            );
+
+            $this->transactionRepository->save($captureExcess);
+        }
+
+        /*
+         * Somente depois de todas as movimentações financeiras terem
+         * sido persistidas o evento passa para processed.
+         */
+        $processedEvent = new Event(
+            id: $eventId,
             externalId: $input->externalId,
             authorizationReference: $input->authorizationId,
             authorizationId: $authorization->id(),
@@ -122,12 +268,7 @@ final class CaptureTransaction
             status: 'processed',
         );
 
-        // $this->eventRepository->save($event);
-        if ($existingEvent !== null) {
-            $this->eventRepository->update($event);
-        } else {
-            $this->eventRepository->save($event);
-        }
+        $this->eventRepository->update($processedEvent);
 
         return true;
     }

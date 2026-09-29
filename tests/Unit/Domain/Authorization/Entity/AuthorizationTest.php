@@ -6,6 +6,7 @@ use App\Domain\Authorization\Entity\Authorization;
 use App\Domain\Authorization\Enums\AuthorizationDecisionEnum;
 use App\Domain\Authorization\Enums\AuthorizationReasonEnum;
 use App\Domain\Shared\ValueObjects\Money;
+use Carbon\CarbonImmutable;
 
 describe('Authorization', function (): void {
     // cria uma autorização aprovada
@@ -23,7 +24,7 @@ describe('Authorization', function (): void {
             merchantName: 'Restaurante Bom Prato',
             merchantCity: 'Porto Alegre',
             merchantCountry: 'BR',
-            occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+            occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
         );
 
         expect($authorization->id())->toBe('aut_01J8KQ7Z3N9M2P4R6T8V0W1X2Y')
@@ -44,7 +45,7 @@ describe('Authorization', function (): void {
             ->and($authorization->merchantCountry())
             ->toBe('BR')
             ->and($authorization->occurredAt())
-            ->toEqual(new DateTimeImmutable('2026-09-17T14:03:22Z'))
+            ->toEqual(CarbonImmutable::parse('2026-09-17T14:03:22Z'))
             ->and($authorization->isApproved())->toBeTrue()
             ->and($authorization->isDeclined())->toBeFalse();
     });
@@ -64,7 +65,7 @@ describe('Authorization', function (): void {
             merchantName: 'Restaurante Bom Prato',
             merchantCity: 'Porto Alegre',
             merchantCountry: 'BR',
-            occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+            occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
         );
 
         expect($authorization->decision())
@@ -89,7 +90,7 @@ describe('Authorization', function (): void {
             merchantName: 'Merchant',
             merchantCity: 'Porto Alegre',
             merchantCountry: 'BR',
-            occurredAt: new DateTimeImmutable(),
+            occurredAt: CarbonImmutable::now(),
         ))->toThrow(InvalidArgumentException::class);
     });
 
@@ -107,7 +108,7 @@ describe('Authorization', function (): void {
             merchantName: 'Merchant',
             merchantCity: 'Porto Alegre',
             merchantCountry: 'BR',
-            occurredAt: new DateTimeImmutable(),
+            occurredAt: CarbonImmutable::now(),
         ))->toThrow(InvalidArgumentException::class);
     });
 
@@ -125,7 +126,7 @@ describe('Authorization', function (): void {
             merchantName: 'Merchant',
             merchantCity: 'Porto Alegre',
             merchantCountry: 'BR',
-            occurredAt: new DateTimeImmutable(),
+            occurredAt: CarbonImmutable::now(),
         ))->toThrow(InvalidArgumentException::class);
     });
 
@@ -143,7 +144,7 @@ describe('Authorization', function (): void {
             merchantName: 'Merchant',
             merchantCity: 'Porto Alegre',
             merchantCountry: 'BR',
-            occurredAt: new DateTimeImmutable(),
+            occurredAt: CarbonImmutable::now(),
         ))->toThrow(InvalidArgumentException::class);
     });
 
@@ -161,7 +162,7 @@ describe('Authorization', function (): void {
             merchantName: 'Merchant',
             merchantCity: 'Porto Alegre',
             merchantCountry: 'BR',
-            occurredAt: new DateTimeImmutable(),
+            occurredAt: CarbonImmutable::now(),
         ))->toThrow(InvalidArgumentException::class);
     });
 
@@ -179,7 +180,7 @@ describe('Authorization', function (): void {
             merchantName: 'Merchant',
             merchantCity: 'Porto Alegre',
             merchantCountry: 'BR',
-            occurredAt: new DateTimeImmutable(),
+            occurredAt: CarbonImmutable::now(),
         ))->toThrow(InvalidArgumentException::class);
     });
 
@@ -197,7 +198,7 @@ describe('Authorization', function (): void {
             merchantName: 'Merchant',
             merchantCity: 'Porto Alegre',
             merchantCountry: 'BR',
-            occurredAt: new DateTimeImmutable(),
+            occurredAt: CarbonImmutable::now(),
         ))->toThrow(InvalidArgumentException::class);
     });
 
@@ -215,7 +216,7 @@ describe('Authorization', function (): void {
             merchantName: '',
             merchantCity: 'Porto Alegre',
             merchantCountry: 'BR',
-            occurredAt: new DateTimeImmutable(),
+            occurredAt: CarbonImmutable::now(),
         ))->toThrow(InvalidArgumentException::class);
     });
 
@@ -234,7 +235,7 @@ describe('Authorization', function (): void {
             merchantName: 'Merchant',
             merchantCity: 'Porto Alegre',
             merchantCountry: 'BR',
-            occurredAt: new DateTimeImmutable(),
+            occurredAt: CarbonImmutable::now(),
         ))->toThrow(InvalidArgumentException::class);
     });
 
@@ -253,7 +254,7 @@ describe('Authorization', function (): void {
             merchantName: 'Merchant',
             merchantCity: 'Porto Alegre',
             merchantCountry: 'BR',
-            occurredAt: new DateTimeImmutable(),
+            occurredAt: CarbonImmutable::now(),
         ))->toThrow(InvalidArgumentException::class);
     });
 });

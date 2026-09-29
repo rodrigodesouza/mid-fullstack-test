@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Shared\ValueObjects\Money;
 use App\Domain\Transaction\Entity\Transaction;
 use App\Domain\Transaction\Enums\TransactionTypeEnum;
+use Carbon\CarbonImmutable;
 
 function makeTransaction(
     string $id = 'txn_01J8KQ7Z3N9M2P4R6T8V0W1X2Y',
@@ -27,13 +28,14 @@ function makeTransaction(
         eventId: $eventId,
         type: $type,
         amount: $amount,
-        occurredAt: new DateTimeImmutable('2026-09-26 10:00:00'),
+        occurredAt: CarbonImmutable::parse('2026-09-26 10:00:00'),
         limitMonth: $limitMonth,
         reference: $reference,
     );
 }
+
 // cria uma transação
-it('creates a transaction', function () {
+it('creates a transaction', function (): void {
     $transaction = makeTransaction();
 
     expect($transaction->id())->toBe('txn_01J8KQ7Z3N9M2P4R6T8V0W1X2Y')
@@ -47,35 +49,35 @@ it('creates a transaction', function () {
         ->and($transaction->reference())->toBe('auth_001');
 });
 
-it('does not allow an invalid transaction id', function () {
+it('does not allow an invalid transaction id', function (): void {
     makeTransaction(id: '');
 })->throws(
     InvalidArgumentException::class,
     'Transaction id cannot be empty.'
 );
 
-it('does not allow an invalid company id', function () {
+it('does not allow an invalid company id', function (): void {
     makeTransaction(companyId: 0);
 })->throws(
     InvalidArgumentException::class,
     'Transaction company id must be greater than zero.'
 );
 
-it('does not allow an invalid card id', function () {
+it('does not allow an invalid card id', function (): void {
     makeTransaction(cardId: 0);
 })->throws(
     InvalidArgumentException::class,
     'Transaction card id must be greater than zero.'
 );
 
-it('does not allow an invalid authorization id', function () {
+it('does not allow an invalid authorization id', function (): void {
     makeTransaction(authorizationId: '');
 })->throws(
     InvalidArgumentException::class,
     'Transaction authorization id cannot be empty.'
 );
 
-it('does not allow an invalid event id', function () {
+it('does not allow an invalid event id', function (): void {
     makeTransaction(eventId: '');
 })->throws(
     InvalidArgumentException::class,
@@ -83,7 +85,7 @@ it('does not allow an invalid event id', function () {
 );
 
 // não permite um valor zero
-it('does not allow a zero amount', function () {
+it('does not allow a zero amount', function (): void {
     makeTransaction(amount: Money::fromCents(0));
 })->throws(
     InvalidArgumentException::class,
@@ -91,14 +93,14 @@ it('does not allow a zero amount', function () {
 );
 
 // não permite um limite com mês inválido
-it('does not allow an invalid limit month', function () {
+it('does not allow an invalid limit month', function (): void {
     makeTransaction(limitMonth: '2026-13');
 })->throws(
     InvalidArgumentException::class,
     'Transaction limit month must be in YYYY-MM format.'
 );
 
-it('does not allow an empty reference', function () {
+it('does not allow an empty reference', function (): void {
     makeTransaction(reference: '   ');
 })->throws(
     InvalidArgumentException::class,

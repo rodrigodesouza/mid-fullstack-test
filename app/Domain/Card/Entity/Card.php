@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\Card\Entity;
 
+use App\Domain\Card\Enums\CardMccRuleEnum;
 use App\Domain\Card\Enums\CardStatusEnum;
 use App\Domain\Shared\ValueObjects\Money;
+use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use InvalidArgumentException;
 
@@ -20,42 +22,19 @@ final class Card
      * Identificador/token usado pela rede para identificar o cartão sem expor seus dados reais.
      * @property-read CardStatusEnum $status
      * Estado do cartão. Os valores usados pelo domínio são`active`e`blocked`. Um cartão`blocked`não pode gerar uma authorization aprovada.
+     *
+     * @param  array<int, CardMccRule>  $mccRules
      */
-    public function __construct(
-        private readonly int $id,
-        private readonly int $userId,
-        private readonly string $cardToken,
-        private readonly Money $monthlyLimitCents,
-        private CardStatusEnum $status,
-        private readonly DateTimeImmutable $createdAt,
-        private DateTimeImmutable $updatedAt,
-        private ?Money $purchaseLimitCents = null,
-    ) {
-        if ($this->id <= 0) {
-            throw new InvalidArgumentException('Card id must be greater than zero.');
-        }
+    public function __construct(private readonly int $id, private readonly int $userId, private readonly string $cardToken, private readonly Money $monthlyLimitCents, private CardStatusEnum $status, private readonly DateTimeImmutable $createdAt, private DateTimeImmutable $updatedAt, private readonly ?Money $purchaseLimitCents = null, private readonly array $mccRules = [])
+    {
+        throw_if($this->id <= 0, InvalidArgumentException::class, 'Card id must be greater than zero.');
+        throw_if($this->userId <= 0, InvalidArgumentException::class, 'User id must be greater than zero.');
+        throw_if($this->cardToken === '', InvalidArgumentException::class, 'Card token cannot be empty.');
+        throw_if($this->monthlyLimitCents->toCents() <= 0, InvalidArgumentException::class, 'Monthly limit must be greater than zero.');
 
-        if ($this->userId <= 0) {
-            throw new InvalidArgumentException('User id must be greater than zero.');
+        if ($this->purchaseLimitCents instanceof Money) {
+            throw_if($this->purchaseLimitCents->toCents() <= 0, InvalidArgumentException::class, 'Purchase limit must be greater than zero.');
         }
-
-        if ($this->cardToken === '') {
-            throw new InvalidArgumentException('Card token cannot be empty.');
-        }
-
-        if ($this->monthlyLimitCents->toCents() <= 0) {
-            throw new InvalidArgumentException(
-                'Monthly limit must be greater than zero.'
-            );
-        }
-        if ($this->purchaseLimitCents !== null) {
-            if ($this->purchaseLimitCents->toCents() <= 0) {
-                throw new InvalidArgumentException(
-                    'Purchase limit must be greater than zero.'
-                );
-            }
-        }
-
     }
 
     public function id(): int
@@ -94,6 +73,12 @@ final class Card
         return $this->purchaseLimitCents;
     }
 
+    public function isMccBlocked(string $mcc): bool
+    {
+        return array_any($this->mccRules, fn ($rule) => ($rule['mcc'] ?? null) === $mcc
+        && ($rule['rule'] ?? null) === CardMccRuleEnum::BLOCKED->value);
+    }
+
     public function createdAt(): DateTimeImmutable
     {
         return $this->createdAt;
@@ -117,13 +102,13 @@ final class Card
     public function block(): void
     {
         $this->status = CardStatusEnum::BLOCKED;
-        $this->updatedAt = new DateTimeImmutable();
+        $this->updatedAt = CarbonImmutable::now();
     }
 
     public function activate(): void
     {
         $this->status = CardStatusEnum::ACTIVE;
-        $this->updatedAt = new DateTimeImmutable();
+        $this->updatedAt = CarbonImmutable::now();
     }
 
     /**
