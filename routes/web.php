@@ -24,7 +24,7 @@ Route::post('/logout', [
 Route::middleware([
     'auth',
     'role:card_holder',
-])->group(function () {
+])->group(function (): void {
 
     Route::get('/my-card', MyCard::class)
         ->name('my-card');

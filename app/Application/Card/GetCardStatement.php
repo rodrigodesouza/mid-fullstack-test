@@ -4,24 +4,26 @@ declare(strict_types=1);
 
 namespace App\Application\Card;
 
+use App\Domain\Card\Entity\Card;
 use App\Domain\Card\Repositories\CardRepository;
 use App\Domain\Transaction\Repositories\TransactionRepository;
 use RuntimeException;
 
-final class GetCardStatement
+final readonly class GetCardStatement
 {
     public function __construct(
         private CardRepository $cards,
         private TransactionRepository $transactions,
     ) {}
 
+    /**
+     * @return array<string, mixed>
+     */
     public function execute(string $cardToken): array
     {
         $card = $this->cards->findByToken($cardToken);
 
-        if ($card === null) {
-            throw new RuntimeException('Card not found.');
-        }
+        throw_if(! $card instanceof Card, RuntimeException::class, 'Card not found.');
 
         $month = now('America/Sao_Paulo')->format('Y-m');
 
@@ -39,7 +41,6 @@ final class GetCardStatement
 
             $statement[] = [
                 'occurred_at' => $transaction['occurred_at'],
-                'type' => $transaction['type'],
                 'amount_cents' => $transaction['amount_cents'],
                 'reference' => $transaction['reference'],
                 'limit_remaining_after_cents' => $limitRemaining,

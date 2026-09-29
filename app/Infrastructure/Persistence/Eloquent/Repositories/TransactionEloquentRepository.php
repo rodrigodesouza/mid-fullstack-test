@@ -93,11 +93,7 @@ final class TransactionEloquentRepository implements TransactionRepository
     }
 
     /**
-     * @return array<int, array{
-     *     reference: string,
-     *     amount_cents: int,
-     *     occurred_at: string
-     * }>
+     * @return array<int, array{reference: string, amount_cents: int, occurred_at: string, type: string}>
      */
     public function statementForCard(
         int $cardId,
@@ -106,12 +102,12 @@ final class TransactionEloquentRepository implements TransactionRepository
         return TransactionModel::query()
             ->where('card_id', $cardId)
             ->where('limit_month', $month.'-01')
-            ->orderBy('occurred_at')
+            ->oldest('occurred_at')
             ->get()
             ->map(static fn (TransactionModel $transaction): array => [
                 'reference' => $transaction->reference,
                 'amount_cents' => $transaction->amount_cents,
-                'occurred_at' => $transaction->occurred_at->toISOString(),
+                'occurred_at' => $transaction->occurred_at,
                 'type' => $transaction->type,
             ])
             ->all();
@@ -139,6 +135,8 @@ final class TransactionEloquentRepository implements TransactionRepository
 
     /**
      * Converts the immutable domain transaction into its persistence representation.
+     *
+     * @return array<string, mixed>
      */
     private function toPersistence(Transaction $transaction): array
     {

@@ -15,7 +15,7 @@ final class CompanyBalance extends StatsOverviewWidget
     {
         $user = Auth::user();
 
-        $balance = app(CompanyBalanceRepository::class)
+        $balance = resolve(CompanyBalanceRepository::class)
             ->availableBalanceFor($user->company_id)
             ->toCents();
 

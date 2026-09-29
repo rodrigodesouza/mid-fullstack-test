@@ -83,7 +83,7 @@ final class EventEloquentRepository implements EventRepository
             sequence: $model->sequence,
             final: $model->final,
             occurredAt: new DateTimeImmutable(
-                $model->occurred_at->toISOString()
+                (string) $model->occurred_at
             ),
             status: $model->status,
         );

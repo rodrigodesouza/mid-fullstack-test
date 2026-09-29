@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Application\Card\GetAvailableCard;
 use Illuminate\Http\JsonResponse;
 
-final class CardController
+final readonly class CardController
 {
     public function __construct(
         private GetAvailableCard $getAvailableCard,

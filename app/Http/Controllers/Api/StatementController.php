@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Application\Card\GetCardStatement;
 use Illuminate\Http\JsonResponse;
 
-final class StatementController
+final readonly class StatementController
 {
     public function __construct(
         private GetCardStatement $statement,

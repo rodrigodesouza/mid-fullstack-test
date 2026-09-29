@@ -126,14 +126,21 @@ final readonly class Transaction
 
     private function validate(): void
     {
-        throw_if($this->id !== null
-        && mb_trim($this->id) === '', InvalidArgumentException::class, 'Transaction id cannot be empty.');
+        throw_if(
+            mb_trim($this->id) === '',
+            InvalidArgumentException::class,
+            'Transaction id cannot be empty.',
+        );
 
         throw_if($this->authorizationId !== null
         && mb_trim($this->authorizationId) === '', InvalidArgumentException::class, 'Transaction authorization id cannot be empty.');
         throw_if($this->companyId <= 0, InvalidArgumentException::class, 'Transaction company id must be greater than zero.');
         throw_if($this->cardId !== null && $this->cardId <= 0, InvalidArgumentException::class, 'Transaction card id must be greater than zero.');
-        throw_if(mb_trim($this->authorizationId) === '' && $this->authorizationId !== null, InvalidArgumentException::class, 'Transaction authorization id cannot be empty.');
+        throw_if(
+            $this->authorizationId !== null && mb_trim($this->authorizationId) === '',
+            InvalidArgumentException::class,
+            'Transaction authorization id cannot be empty.',
+        );
         throw_if($this->eventId !== null
         && mb_trim($this->eventId) === '', InvalidArgumentException::class, 'Transaction event id cannot be empty.');
         throw_if($this->amount->isZero(), InvalidArgumentException::class, 'Transaction amount must not be zero.');

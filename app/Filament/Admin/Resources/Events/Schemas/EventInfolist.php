@@ -47,7 +47,9 @@ final class EventInfolist
 
                 TextEntry::make('final')
                     ->label('Final')
-                    ->boolean(),
+                    ->formatStateUsing(
+                        fn (bool $state): string => $state ? 'Yes' : 'No'
+                    ),
 
                 TextEntry::make('occurred_at')
                     ->label('Ocorrido em')

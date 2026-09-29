@@ -54,7 +54,7 @@ final readonly class User
 
         throw_if($companyId <= 0, InvalidUserAttributeException::class, 'User company ID must be a positive integer.');
 
-        throw_if($password === null || ($password !== null && mb_strlen($password) < 6), InvalidUserAttributeException::class, 'User password must be at least 6 characters long.');
+        throw_if($password === null || ($password !== '' && mb_strlen($password) < 6), InvalidUserAttributeException::class, 'User password must be at least 6 characters long.');
 
     }
 }
