@@ -75,7 +75,9 @@ final class AuthorizationEloquentRepository implements AuthorizationRepository
             merchantName: $model->merchant_name,
             merchantCity: $model->merchant_city,
             merchantCountry: $model->merchant_country,
-            occurredAt: new DateTimeImmutable($model->occurred_at),
+            occurredAt: new DateTimeImmutable(
+                (string) $model->occurred_at
+            ),
         );
     }
 }
