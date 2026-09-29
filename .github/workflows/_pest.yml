@@ -28,7 +28,7 @@ jobs:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-pest
       cancel-in-progress: true
     services:
-      passa-db:
+      postgres:
         image: postgres:18-alpine
         env:
           POSTGRES_USER: postgres
@@ -66,5 +66,7 @@ jobs:
           custom-cache-key: ${{ inputs.CACHE_KEY }}
 
       - name: Run Tests
+        env:
+          DB_HOST: postgres
         run: |
           vendor/bin/pest --ci --parallel
