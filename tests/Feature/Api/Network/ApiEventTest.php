@@ -88,7 +88,7 @@ it('does not require capture specific fields for cancellation', function (): voi
     $response = networkPost('/api/network/events', $payload);
 
     $response
-        ->assertUnprocessable()
+        ->assertAccepted()
         ->assertJsonMissingPath('errors.amount_cents')
         ->assertJsonMissingPath('errors.currency')
         ->assertJsonMissingPath('errors.final');

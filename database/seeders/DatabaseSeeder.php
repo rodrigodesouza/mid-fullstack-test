@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 // use App\Models\User;
 use App\Domain\Transaction\Enums\TransactionTypeEnum;
+use App\Infrastructure\Persistence\Eloquent\Models\AuthorizationModel;
 use App\Infrastructure\Persistence\Eloquent\Models\CardModel;
 use App\Infrastructure\Persistence\Eloquent\Models\CompanyModel;
 use App\Infrastructure\Persistence\Eloquent\Models\TransactionModel;
@@ -116,6 +117,22 @@ final class DatabaseSeeder extends Seeder
                 'tolerance_percent' => 20,
             ]);
         }
+
+        AuthorizationModel::query()->create([
+            'id' => (string) Str::uuid(),
+            'external_id' => 'aut_demo_001',
+            'card_id' => $anaCard->id,
+            'company_id' => $company->id,
+            'amount_cents' => 50000,
+            'currency' => 'BRL',
+            'mcc' => '5812',
+            'decision' => 'approved',
+            'reason' => null,
+            'merchant_name' => 'Restaurante Demo',
+            'merchant_city' => 'Belem',
+            'merchant_country' => 'BR',
+            'occurred_at' => now(),
+        ]);
 
         TransactionModel::query()->create([
             'id' => (string) Str::uuid(),

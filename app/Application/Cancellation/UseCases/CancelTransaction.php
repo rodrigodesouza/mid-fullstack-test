@@ -25,19 +25,40 @@ final readonly class CancelTransaction
 
     public function execute(CancelTransactionInput $input): bool
     {
-        // X3 — Evento já processado não pode produzir novo efeito financeiro.
         $existingEvent = $this->eventRepository
             ->findByExternalId($input->externalId);
 
-        if ($existingEvent instanceof Event && $existingEvent->status() !== 'pending') {
+        // X3 — evento já processado não gera efeito financeiro novamente.
+        if ($existingEvent instanceof Event && $existingEvent->status() === 'processed') {
             return true;
         }
 
         $authorization = $this->authorizationRepository
             ->findByExternalId($input->authorizationId);
 
+        // Decisão: cancellation de authorization desconhecida é aceito e persistido.
         if (! $authorization instanceof Authorization) {
-            return false;
+            $event = new Event(
+                id: $existingEvent?->id() ?? (string) Str::uuid(),
+                externalId: $input->externalId,
+                authorizationReference: $input->authorizationId,
+                authorizationId: null,
+                type: 'cancellation',
+                amountCents: null,
+                currency: null,
+                sequence: null,
+                final: true,
+                occurredAt: $input->occurredAt,
+                status: 'processed',
+            );
+
+            if ($existingEvent instanceof Event) {
+                $this->eventRepository->update($event);
+            } else {
+                $this->eventRepository->save($event);
+            }
+
+            return true;
         }
 
         $event = new Event(
@@ -51,11 +72,16 @@ final readonly class CancelTransaction
             sequence: null,
             final: true,
             occurredAt: $input->occurredAt,
-            status: 'pending',
+            status: 'processed',
         );
 
-        $this->eventRepository->save($event);
+        if ($existingEvent instanceof Event) {
+            $this->eventRepository->update($event);
+        } else {
+            $this->eventRepository->save($event);
+        }
 
+        // Libera somente o valor ainda reservado.
         $captured = $this->transactionRepository
             ->capturedAmountForAuthorization($authorization->id());
 
@@ -71,7 +97,6 @@ final readonly class CancelTransaction
                 type: TransactionTypeEnum::RELEASE,
                 amount: $remaining,
                 occurredAt: $input->occurredAt,
-                // limitMonth: $input->occurredAt->format('Y-m'),
                 limitMonth: $authorization
                     ->occurredAt()
                     ->setTimezone(new DateTimeZone('America/Sao_Paulo'))
@@ -81,22 +106,6 @@ final readonly class CancelTransaction
 
             $this->transactionRepository->save($release);
         }
-
-        $processedEvent = new Event(
-            id: $event->id(),
-            externalId: $event->externalId(),
-            authorizationReference: $event->authorizationReference(),
-            authorizationId: $authorization->id(),
-            type: $event->type(),
-            amountCents: $event->amountCents(),
-            currency: $event->currency(),
-            sequence: $event->sequence(),
-            final: $event->isFinal(),
-            occurredAt: $event->occurredAt(),
-            status: 'processed',
-        );
-
-        $this->eventRepository->update($processedEvent);
 
         return true;
     }

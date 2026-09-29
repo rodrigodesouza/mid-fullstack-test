@@ -43,6 +43,7 @@ final class AdminPanelProvider extends PanelProvider
             ->sidebarFullyCollapsibleOnDesktop()
             ->widgets([
                 AccountWidget::class,
+                \App\Filament\Admin\Widgets\CompanyBalance::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -57,6 +58,7 @@ final class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                \App\Http\Middleware\CheckRole::class.':admin',
             ]);
     }
 }

@@ -25,4 +25,16 @@ interface TransactionRepository
     public function capturedAmountForAuthorization(string $authorizationId): Money;
 
     public function hasFinalCapture(string $authorizationId): bool;
+
+    /**
+     * @return array<int, array{
+     *     reference: string,
+     *     amount_cents: int,
+     *     occurred_at: string
+     * }>
+     */
+    public function statementForCard(
+        int $cardId,
+        string $month,
+    ): array;
 }
