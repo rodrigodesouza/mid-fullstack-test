@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Card\Entity\Card;
 use App\Domain\Card\Enums\CardStatusEnum;
 use App\Domain\Shared\ValueObjects\Money;
+use Carbon\CarbonImmutable;
 
 function makeCard(
     int $id = 1,
@@ -13,7 +14,7 @@ function makeCard(
     int $monthlyLimitCents = 500000,
     CardStatusEnum $status = CardStatusEnum::ACTIVE,
 ): Card {
-    $createdAt = new DateTimeImmutable('2026-09-26 10:00:00');
+    $createdAt = CarbonImmutable::parse('2026-09-26 10:00:00');
 
     return new Card(
         id: $id,
@@ -26,7 +27,7 @@ function makeCard(
     );
 }
 
-it('creates an active card', function () {
+it('creates an active card', function (): void {
     $card = makeCard();
 
     expect($card->id())->toBe(1)
@@ -38,7 +39,7 @@ it('creates an active card', function () {
         ->and($card->isBlocked())->toBeFalse();
 });
 
-it('creates a blocked card', function () {
+it('creates a blocked card', function (): void {
     $card = makeCard(status: CardStatusEnum::BLOCKED);
 
     expect($card->status())->toBe(CardStatusEnum::BLOCKED)
@@ -46,42 +47,42 @@ it('creates a blocked card', function () {
         ->and($card->isBlocked())->toBeTrue();
 });
 
-it('does not allow an invalid card id', function () {
+it('does not allow an invalid card id', function (): void {
     makeCard(id: 0);
 })->throws(
     InvalidArgumentException::class,
     'Card id must be greater than zero.'
 );
 
-it('does not allow an invalid user id', function () {
+it('does not allow an invalid user id', function (): void {
     makeCard(userId: 0);
 })->throws(
     InvalidArgumentException::class,
     'User id must be greater than zero.'
 );
 
-it('does not allow an empty card token', function () {
+it('does not allow an empty card token', function (): void {
     makeCard(cardToken: '');
 })->throws(
     InvalidArgumentException::class,
     'Card token cannot be empty.'
 );
 
-it('does not allow a zero monthly limit', function () {
+it('does not allow a zero monthly limit', function (): void {
     makeCard(monthlyLimitCents: 0);
 })->throws(
     InvalidArgumentException::class,
     'Monthly limit must be greater than zero.'
 );
 
-it('does not allow a negative monthly limit', function () {
+it('does not allow a negative monthly limit', function (): void {
     makeCard(monthlyLimitCents: -1);
 })->throws(
     InvalidArgumentException::class,
     'Monthly limit must be greater than zero.'
 );
 
-it('blocks an active card', function () {
+it('blocks an active card', function (): void {
     $card = makeCard();
 
     $card->block();
@@ -91,7 +92,7 @@ it('blocks an active card', function () {
         ->and($card->isActive())->toBeFalse();
 });
 
-it('activates a blocked card', function () {
+it('activates a blocked card', function (): void {
     $card = makeCard(status: CardStatusEnum::BLOCKED);
 
     $card->activate();

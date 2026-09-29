@@ -15,16 +15,17 @@ use App\Domain\Company\Repositories\CompanyBalanceRepository;
 use App\Domain\Shared\ValueObjects\Money;
 use App\Domain\Transaction\Repositories\TransactionRepository;
 use App\Domain\User\Repositories\UserRepository;
+use Carbon\CarbonImmutable;
 use Tests\Support\Builders\AuthorizeTransactionInputBuilder;
 use Tests\Support\Builders\CardBuilder;
 use Tests\Support\Builders\UserBuilder;
 
-afterEach(function () {
+afterEach(function (): void {
     Mockery::close();
 });
 
 // A1 — Regra: retorna a autorização existente quando o ID externo já foi processado.
-it('A1: returns the existing authorization when the external id was already processed', function () {
+it('A1: returns the existing authorization when the external id was already processed', function (): void {
     $authorization = new Authorization(
         id: '01J8KQ7Z3N9M2P4R6T8V0W1X2Y',
         externalId: 'aut_01J8KQ7Z3N9M2P4R6T8V0W1X2Y',
@@ -38,7 +39,7 @@ it('A1: returns the existing authorization when the external id was already proc
         merchantName: 'Restaurante Bom Prato',
         merchantCity: 'Porto Alegre',
         merchantCountry: 'BR',
-        occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+        occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
     );
 
     $authorizationRepository = Mockery::mock(AuthorizationRepository::class);
@@ -85,7 +86,7 @@ it('A1: returns the existing authorization when the external id was already proc
 });
 
 // A2 — Regra: recusa a autorização quando o cartão não existe, sem criar reserva financeira.
-it('A2: declines the authorization when the card does not exist', function () {
+it('A2: declines the authorization when the card does not exist', function (): void {
     $cardLimitsRepository = Mockery::mock(CardLimitsRepository::class);
     $userRepository = Mockery::mock(UserRepository::class);
     $authorizationRepository = Mockery::mock(AuthorizationRepository::class);
@@ -129,7 +130,7 @@ it('A2: declines the authorization when the card does not exist', function () {
 });
 
 // A3 — Regra: recusa a autorização quando o cartão está bloqueado, sem criar reserva financeira.
-it('A3: declines the authorization when the card is blocked', function () {
+it('A3: declines the authorization when the card is blocked', function (): void {
     $authorizationRepository = Mockery::mock(AuthorizationRepository::class);
     $cardLimitsRepository = Mockery::mock(CardLimitsRepository::class);
     $userRepository = Mockery::mock(UserRepository::class);
@@ -141,13 +142,24 @@ it('A3: declines the authorization when the card is blocked', function () {
         ->once()
         ->andReturnNull();
 
-    $authorizationRepository
-        ->shouldReceive('save')
-        ->never();
-
     $card = CardBuilder::make()
         ->withStatus(CardStatusEnum::BLOCKED)
         ->build();
+
+    $user = UserBuilder::make()
+        ->withId($card->userId())
+        ->withCompanyId(1)
+        ->build();
+
+    $userRepository
+        ->shouldReceive('findById')
+        ->once()
+        ->with($card->userId())
+        ->andReturn($user);
+
+    $authorizationRepository
+        ->shouldReceive('save')
+        ->once();
 
     $cardRepository = Mockery::mock(CardRepository::class);
 
@@ -173,7 +185,7 @@ it('A3: declines the authorization when the card is blocked', function () {
     $result = $useCase->execute($input);
 
     expect($result->authorization)
-        ->toBeNull()
+        ->not->toBeNull()
         ->and($result->decision)
         ->toBe(AuthorizationDecisionEnum::DECLINED)
         ->and($result->reason)
@@ -181,7 +193,7 @@ it('A3: declines the authorization when the card is blocked', function () {
 });
 
 // A4 — Regra: recusa a autorização quando o MCC está bloqueado para o cartão, sem criar reserva financeira.
-it('A4: declines the authorization when the MCC is blocked for the card', function () {
+it('A4: declines the authorization when the MCC is blocked for the card', function (): void {
     $authorizationRepository = Mockery::mock(AuthorizationRepository::class);
     $cardLimitsRepository = Mockery::mock(CardLimitsRepository::class);
     $userRepository = Mockery::mock(UserRepository::class);
@@ -193,11 +205,22 @@ it('A4: declines the authorization when the MCC is blocked for the card', functi
         ->once()
         ->andReturnNull();
 
+    $card = CardBuilder::make()->withBlockedMcc('7995')->build();
+
+    $user = UserBuilder::make()
+        ->withId($card->userId())
+        ->withCompanyId(1)
+        ->build();
+
+    $userRepository
+        ->shouldReceive('findById')
+        ->once()
+        ->with($card->userId())
+        ->andReturn($user);
+
     $authorizationRepository
         ->shouldReceive('save')
-        ->never();
-
-    $card = CardBuilder::make()->build();
+        ->once();
 
     $cardRepository = Mockery::mock(CardRepository::class);
 
@@ -224,7 +247,7 @@ it('A4: declines the authorization when the MCC is blocked for the card', functi
     $result = $useCase->execute($input);
 
     expect($result->authorization)
-        ->toBeNull()
+        ->not->toBeNull()
         ->and($result->decision)
         ->toBe(AuthorizationDecisionEnum::DECLINED)
         ->and($result->reason)
@@ -232,7 +255,7 @@ it('A4: declines the authorization when the MCC is blocked for the card', functi
 });
 
 // A5 — Regra: deve recusar a autorização quando o valor exceder o limite máximo por compra.
-it('A5: declines the authorization when the amount exceeds the purchase limit', function () {
+it('A5: declines the authorization when the amount exceeds the purchase limit', function (): void {
     $authorizationRepository = Mockery::mock(AuthorizationRepository::class);
     $cardLimitsRepository = Mockery::mock(CardLimitsRepository::class);
     $userRepository = Mockery::mock(UserRepository::class);
@@ -244,11 +267,26 @@ it('A5: declines the authorization when the amount exceeds the purchase limit', 
         ->once()
         ->andReturnNull();
 
-    $authorizationRepository
-        ->shouldReceive('save')
-        ->never();
+    // $authorizationRepository
+    //     ->shouldReceive('save')
+    //     ->never();
 
     $card = CardBuilder::make()->build();
+
+    $user = UserBuilder::make()
+        ->withId($card->userId())
+        ->withCompanyId(1)
+        ->build();
+
+    $userRepository
+        ->shouldReceive('findById')
+        ->once()
+        ->with($card->userId())
+        ->andReturn($user);
+
+    $authorizationRepository
+        ->shouldReceive('save')
+        ->once();
 
     $cardRepository = Mockery::mock(CardRepository::class);
 
@@ -281,7 +319,8 @@ it('A5: declines the authorization when the amount exceeds the purchase limit', 
     $result = $useCase->execute($input);
 
     expect($result->authorization)
-        ->toBeNull()
+        // ->toBeNull()
+        ->not->toBeNull()
         ->and($result->decision)
         ->toBe(AuthorizationDecisionEnum::DECLINED)
         ->and($result->reason)
@@ -289,7 +328,7 @@ it('A5: declines the authorization when the amount exceeds the purchase limit', 
 });
 
 // A6 — Regra: deve recusar a autorização quando o valor exceder o limite mensal restante do cartão.
-it('A6: declines the authorization when the amount exceeds the remaining monthly card limit', function () {
+it('A6: declines the authorization when the amount exceeds the remaining monthly card limit', function (): void {
     $authorizationRepository = Mockery::mock(AuthorizationRepository::class);
     $cardLimitsRepository = Mockery::mock(CardLimitsRepository::class);
     $userRepository = Mockery::mock(UserRepository::class);
@@ -306,6 +345,21 @@ it('A6: declines the authorization when the amount exceeds the remaining monthly
         ->never();
 
     $card = CardBuilder::make()->build();
+
+    $user = UserBuilder::make()
+        ->withId($card->userId())
+        ->withCompanyId(1)
+        ->build();
+
+    $userRepository
+        ->shouldReceive('findById')
+        ->once()
+        ->with($card->userId())
+        ->andReturn($user);
+
+    $authorizationRepository
+        ->shouldReceive('save')
+        ->once();
 
     $cardRepository = Mockery::mock(CardRepository::class);
 
@@ -344,7 +398,7 @@ it('A6: declines the authorization when the amount exceeds the remaining monthly
     $result = $useCase->execute($input);
 
     expect($result->authorization)
-        ->toBeNull()
+        ->not->toBeNull()
         ->and($result->decision)
         ->toBe(AuthorizationDecisionEnum::DECLINED)
         ->and($result->reason)
@@ -352,7 +406,7 @@ it('A6: declines the authorization when the amount exceeds the remaining monthly
 });
 
 // A7 — Regra: recusa a autorização quando o valor da compra excede o saldo disponível da empresa.
-it('A7: declines the authorization when the amount exceeds the company available balance', function () {
+it('A7: declines the authorization when the amount exceeds the company available balance', function (): void {
     $card = CardBuilder::make()->build();
 
     $user = UserBuilder::make()
@@ -368,6 +422,10 @@ it('A7: declines the authorization when the amount exceeds the company available
         ->shouldReceive('findByExternalId')
         ->once()
         ->andReturnNull();
+
+    $authorizationRepository
+        ->shouldReceive('save')
+        ->once();
 
     $cardRepository = Mockery::mock(CardRepository::class);
     $cardRepository
@@ -424,11 +482,11 @@ it('A7: declines the authorization when the amount exceeds the company available
         ->and($result->reason)
         ->toBe(AuthorizationReasonEnum::COMPANY_BALANCE_EXCEEDED)
         ->and($result->authorization)
-        ->toBeNull();
+        ->not->toBeNull();
 });
 
 // A8 — Regra: aprova a autorização quando todas as regras anteriores são satisfeitas e cria a autorização.
-it('A8: approves the authorization when all authorization rules pass', function () {
+it('A8: approves the authorization when all authorization rules pass', function (): void {
     $authorizationRepository = Mockery::mock(AuthorizationRepository::class);
     $cardRepository = Mockery::mock(CardRepository::class);
     $cardLimitsRepository = Mockery::mock(CardLimitsRepository::class);
@@ -522,7 +580,7 @@ it('A8: approves the authorization when all authorization rules pass', function 
 });
 
 // A9 — Regra: ao aprovar, deve reservar o valor no cartão e no saldo disponível da empresa.
-it('A9: reserves the authorization amount on the card and company balance when approved', function () {
+it('A9: reserves the authorization amount on the card and company balance when approved', function (): void {
     $card = CardBuilder::make()
         ->build();
 
@@ -600,7 +658,7 @@ it('A9: reserves the authorization amount on the card and company balance when a
 });
 
 // A10: autorizações concorrentes não podem ultrapassar o saldo disponível.
-it('A10: does not approve authorizations beyond the available balance under concurrency', function () {
+it('A10: does not approve authorizations beyond the available balance under concurrency', function (): void {
     // A10: autorizações concorrentes não podem ultrapassar o saldo disponível.
 
     $authorizationRepository = Mockery::mock(AuthorizationRepository::class);
@@ -656,7 +714,7 @@ it('A10: does not approve authorizations beyond the available balance under conc
     $transactionRepository
         ->shouldReceive('reserve')
         ->times(20)
-        ->andReturnUsing(function () use (&$approvedReservations) {
+        ->andReturnUsing(function () use (&$approvedReservations): bool {
             if ($approvedReservations >= 5) {
                 return false;
             }

@@ -14,6 +14,9 @@ interface EventRepository
 
     public function hasFinalCapture(string $authorizationId): bool;
 
+    /**
+     * @return Event[]
+     */
     public function findPendingByAuthorizationReference(
         string $authorizationReference
     ): array;

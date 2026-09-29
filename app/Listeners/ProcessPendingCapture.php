@@ -10,11 +10,11 @@ use App\Domain\Event\Repositories\EventRepository;
 use App\Domain\Shared\ValueObjects\Money;
 use App\Events\AuthorizationApproved;
 
-final class ProcessPendingCapture
+final readonly class ProcessPendingCapture
 {
     public function __construct(
-        private readonly EventRepository $eventRepository,
-        private readonly CaptureTransaction $captureTransaction,
+        private EventRepository $eventRepository,
+        private CaptureTransaction $captureTransaction,
     ) {}
 
     public function handle(AuthorizationApproved $event): void

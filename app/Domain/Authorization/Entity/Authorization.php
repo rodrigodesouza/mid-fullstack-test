@@ -76,11 +76,6 @@ final readonly class Authorization
      */
     private string $merchantCountry;
 
-    /**
-     * Data e hora em que a autorização ocorreu na rede.
-     */
-    private DateTimeImmutable $occurredAt;
-
     public function __construct(
         string $id,
         string $externalId,
@@ -94,65 +89,36 @@ final readonly class Authorization
         string $merchantName,
         string $merchantCity,
         string $merchantCountry,
-        DateTimeImmutable $occurredAt,
+        /**
+         * Data e hora em que a autorização ocorreu na rede.
+         */
+        private DateTimeImmutable $occurredAt,
     ) {
-        if (trim($id) === '') {
-            throw new InvalidAuthorizationException('Authorization id cannot be empty.');
-        }
+        throw_if(mb_trim($id) === '', InvalidAuthorizationException::class, 'Authorization id cannot be empty.');
 
-        if (trim($externalId) === '') {
-            throw new InvalidAuthorizationException('Authorization external id cannot be empty.');
-        }
+        throw_if(mb_trim($externalId) === '', InvalidAuthorizationException::class, 'Authorization external id cannot be empty.');
 
-        if ($cardId <= 0) {
-            throw new InvalidAuthorizationException('Authorization card id must be greater than zero.');
-        }
+        throw_if($cardId <= 0, InvalidAuthorizationException::class, 'Authorization card id must be greater than zero.');
 
-        if ($companyId <= 0) {
-            throw new InvalidAuthorizationException('Authorization company id must be greater than zero.');
-        }
+        throw_if($companyId <= 0, InvalidAuthorizationException::class, 'Authorization company id must be greater than zero.');
 
-        if ($amount->isLessThan(Money::fromCents(1))) {
-            throw new InvalidAuthorizationException('Authorization amount must be greater than zero.');
-        }
+        throw_if($amount->isLessThan(Money::fromCents(1)), InvalidAuthorizationException::class, 'Authorization amount must be greater than zero.');
 
-        if (trim($currency) === '') {
-            throw new InvalidAuthorizationException('Authorization currency cannot be empty.');
-        }
+        throw_if(mb_trim($currency) === '', InvalidAuthorizationException::class, 'Authorization currency cannot be empty.');
 
-        if (trim($mcc) === '') {
-            throw new InvalidAuthorizationException('Authorization MCC cannot be empty.');
-        }
+        throw_if(mb_trim($mcc) === '', InvalidAuthorizationException::class, 'Authorization MCC cannot be empty.');
 
-        if (trim($merchantName) === '') {
-            throw new InvalidAuthorizationException('Authorization merchant name cannot be empty.');
-        }
+        throw_if(mb_trim($merchantName) === '', InvalidAuthorizationException::class, 'Authorization merchant name cannot be empty.');
 
-        if (trim($merchantCity) === '') {
-            throw new InvalidAuthorizationException('Authorization merchant city cannot be empty.');
-        }
+        throw_if(mb_trim($merchantCity) === '', InvalidAuthorizationException::class, 'Authorization merchant city cannot be empty.');
 
-        if (trim($merchantCountry) === '') {
-            throw new InvalidAuthorizationException('Authorization merchant country cannot be empty.');
-        }
+        throw_if(mb_trim($merchantCountry) === '', InvalidAuthorizationException::class, 'Authorization merchant country cannot be empty.');
 
-        if (
-            $decision === AuthorizationDecisionEnum::APPROVED
-            && $reason !== null
-        ) {
-            throw new InvalidAuthorizationException(
-                'Approved authorization cannot have a reason.'
-            );
-        }
+        throw_if($decision === AuthorizationDecisionEnum::APPROVED
+        && $reason instanceof AuthorizationReasonEnum, InvalidAuthorizationException::class, 'Approved authorization cannot have a reason.');
 
-        if (
-            $decision === AuthorizationDecisionEnum::DECLINED
-            && $reason === null
-        ) {
-            throw new InvalidAuthorizationException(
-                'Declined authorization must have a reason.'
-            );
-        }
+        throw_if($decision === AuthorizationDecisionEnum::DECLINED
+        && ! $reason instanceof AuthorizationReasonEnum, InvalidAuthorizationException::class, 'Declined authorization must have a reason.');
 
         $this->id = $id;
         $this->externalId = $externalId;
@@ -166,7 +132,6 @@ final readonly class Authorization
         $this->merchantName = $merchantName;
         $this->merchantCity = $merchantCity;
         $this->merchantCountry = $merchantCountry;
-        $this->occurredAt = $occurredAt;
     }
 
     public function id(): string

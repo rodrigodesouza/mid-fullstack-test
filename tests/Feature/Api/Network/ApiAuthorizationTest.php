@@ -6,16 +6,42 @@ use App\Domain\Transaction\Enums\TransactionTypeEnum;
 use App\Infrastructure\Persistence\Eloquent\Models\AuthorizationModel;
 use App\Infrastructure\Persistence\Eloquent\Models\TransactionModel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Date;
+use Illuminate\Testing\TestResponse;
 
 uses(
     RefreshDatabase::class,
-)->beforeEach(function () {
+)->beforeEach(function (): void {
     $this->seed();
 });
 
+function authorizationNetworkPost(
+    string $url,
+    array $payload,
+): TestResponse {
+    $timestamp = (string) Date::now()->getTimestamp();
+
+    $body = json_encode(
+        $payload,
+        JSON_THROW_ON_ERROR,
+    );
+
+    return test()
+        ->withHeaders([
+            'X-Network-Timestamp' => $timestamp,
+            'X-Network-Signature' => 'sha256='.hash_hmac(
+                'sha256',
+                $timestamp.'.'.$body,
+                (string) config('services.network.secret'),
+            ),
+            'Content-Type' => 'application/json',
+        ])
+        ->postJson($url, $payload);
+}
+
 // I19 / A-HTTP1 — Regra: uma autorização válida recebida pela API deve retornar 202.
-it('accepts a valid authorization request', function () {
-    $response = $this->postJson('/api/network/authorizations', [
+it('accepts a valid authorization request', function (): void {
+    $response = authorizationNetworkPost('/api/network/authorizations', [
         'id' => 'aut_http_001',
         'card_token' => 'tok_ana',
         'amount_cents' => 12990,
@@ -38,8 +64,8 @@ it('accepts a valid authorization request', function () {
 });
 
 // I20 / A-HTTP2 — Regra: a autorização deve exigir todos os campos obrigatórios do contrato.
-it('requires authorization fields', function () {
-    $response = $this->postJson('/api/network/authorizations', []);
+it('requires authorization fields', function (): void {
+    $response = authorizationNetworkPost('/api/network/authorizations', []);
 
     $response
         ->assertUnprocessable()
@@ -55,8 +81,8 @@ it('requires authorization fields', function () {
 });
 
 // I21 / A-HTTP3 — Regra: merchant deve conter nome, cidade e país.
-it('requires merchant fields', function () {
-    $response = $this->postJson('/api/network/authorizations', [
+it('requires merchant fields', function (): void {
+    $response = authorizationNetworkPost('/api/network/authorizations', [
         'id' => 'aut_http_002',
         'card_token' => 'tok_ana',
         'amount_cents' => 12990,
@@ -76,8 +102,8 @@ it('requires merchant fields', function () {
 });
 
 // I22 / A-HTTP4 — Regra: os campos numéricos e formatos definidos pelo contrato devem ser válidos.
-it('rejects invalid authorization field formats', function () {
-    $response = $this->postJson('/api/network/authorizations', [
+it('rejects invalid authorization field formats', function (): void {
+    $response = authorizationNetworkPost('/api/network/authorizations', [
         'id' => 'aut_http_003',
         'card_token' => 'tok_ana',
         'amount_cents' => 0,
@@ -102,7 +128,7 @@ it('rejects invalid authorization field formats', function () {
 });
 
 // I23 / A1 — Regra: uma autorização duplicada deve retornar a mesma decisão sem criar nova reserva.
-it('returns the same decision for a duplicated authorization', function () {
+it('returns the same decision for a duplicated authorization', function (): void {
     $payload = [
         'id' => 'aut_http_duplicate_001',
         'card_token' => 'tok_ana',
@@ -117,9 +143,9 @@ it('returns the same decision for a duplicated authorization', function () {
         'occurred_at' => '2026-09-17T14:03:22Z',
     ];
 
-    $firstResponse = $this->postJson(
+    $firstResponse = authorizationNetworkPost(
         '/api/network/authorizations',
-        $payload
+        $payload,
     );
 
     $firstResponse
@@ -139,9 +165,9 @@ it('returns the same decision for a duplicated authorization', function () {
 
     expect($reserveCount)->toBe(1);
 
-    $secondResponse = $this->postJson(
+    $secondResponse = authorizationNetworkPost(
         '/api/network/authorizations',
-        $payload
+        $payload,
     );
 
     $secondResponse

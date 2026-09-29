@@ -14,64 +14,66 @@ use App\Domain\Card\Entity\Card;
 use App\Domain\Card\Repositories\CardLimitsRepository;
 use App\Domain\Card\Repositories\CardRepository;
 use App\Domain\Company\Repositories\CompanyBalanceRepository;
+use App\Domain\Shared\ValueObjects\Money;
 use App\Domain\Transaction\Entity\Transaction;
 use App\Domain\Transaction\Enums\TransactionTypeEnum;
 use App\Domain\Transaction\Repositories\TransactionRepository;
 use App\Domain\User\Entity\User;
 use App\Domain\User\Repositories\UserRepository;
 use App\Events\AuthorizationApproved;
+use Illuminate\Support\Str;
 
-final class AuthorizeTransaction
+final readonly class AuthorizeTransaction
 {
     public function __construct(
-        private readonly AuthorizationRepository $authorizationRepository,
-        private readonly CardRepository $cardRepository,
-        private readonly CardLimitsRepository $cardLimitsRepository,
-        private readonly UserRepository $userRepository,
-        private readonly CompanyBalanceRepository $companyBalanceRepository,
-        private readonly TransactionRepository $transactionRepository,
+        private AuthorizationRepository $authorizationRepository,
+        private CardRepository $cardRepository,
+        private CardLimitsRepository $cardLimitsRepository,
+        private UserRepository $userRepository,
+        private CompanyBalanceRepository $companyBalanceRepository,
+        private TransactionRepository $transactionRepository,
     ) {}
 
     public function execute(
         AuthorizeTransactionInput $input,
     ): AuthorizationResult {
         // A1
-        if ($result = $this->findExistingAuthorization($input)) {
+        if (($result = $this->findExistingAuthorization($input)) instanceof AuthorizationResult) {
             return $result;
         }
 
         // A2
         $card = $this->findCard($input);
 
-        if ($card === null) {
+        if (! $card instanceof Card) {
             return $this->declineCardNotFound();
-        }
-
-        // A3
-        if ($result = $this->declineIfCardBlocked($card)) {
-            return $result;
-        }
-
-        // A4
-        if ($result = $this->declineIfMccBlocked($input)) {
-            return $result;
-        }
-
-        // A5
-        if ($result = $this->declineIfPurchaseLimitExceeded($input, $card)) {
-            return $result;
-        }
-
-        // A6
-        if ($result = $this->declineIfMonthlyLimitExceeded($input, $card)) {
-            return $result;
         }
 
         $user = $this->userRepository->findById($card->userId());
 
+        // A3
+        if (($result = $this->declineIfCardBlocked($card)) instanceof AuthorizationResult) {
+            return $this->persistDeclinedAuthorization($input, $card, $user, $result);
+        }
+
+        // A4
+        if (($result = $this->declineIfMccBlocked(input: $input, card: $card)) instanceof AuthorizationResult) {
+            return $this->persistDeclinedAuthorization($input, $card, $user, $result);
+        }
+
+        // A5
+        if (($result = $this->declineIfPurchaseLimitExceeded($input, $card)) instanceof AuthorizationResult) {
+            return $this->persistDeclinedAuthorization($input, $card, $user, $result);
+        }
+
+        // A6
+        if (($result = $this->declineIfMonthlyLimitExceeded($input, $card)) instanceof AuthorizationResult) {
+            return $this->persistDeclinedAuthorization($input, $card, $user, $result);
+        }
+
         // A7
-        if ($result = $this->declineIfCompanyBalanceExceeded($input, $user)) {
-            return $result;
+        if (($result = $this->declineIfCompanyBalanceExceeded($input, $user)) instanceof AuthorizationResult) {
+            return $this->persistDeclinedAuthorization($input, $card, $user, $result);
         }
 
         // A8
@@ -82,7 +84,7 @@ final class AuthorizeTransaction
         );
 
         $reservation = new Transaction(
-            id: (string) \Illuminate\Support\Str::uuid(),
+            id: (string) Str::uuid(),
             companyId: $user->companyId(),
             cardId: $card->id(),
             authorizationId: $authorization->id(),
@@ -122,7 +124,7 @@ final class AuthorizeTransaction
         $authorization = $this->authorizationRepository
             ->findByExternalId($input->externalId);
 
-        if ($authorization === null) {
+        if (! $authorization instanceof Authorization) {
             return null;
         }
 
@@ -176,8 +178,9 @@ final class AuthorizeTransaction
      */
     private function declineIfMccBlocked(
         AuthorizeTransactionInput $input,
+        Card $card
     ): ?AuthorizationResult {
-        if (! $this->isMccBlocked($input->mcc)) {
+        if (! $this->isMccBlocked(card: $card, mcc: $input->mcc)) {
             return null;
         }
 
@@ -198,20 +201,48 @@ final class AuthorizeTransaction
         $purchaseLimit = $this->cardLimitsRepository
             ->purchaseLimitFor($card->id());
 
-        // if (! $input->amount->isGreaterThan($purchaseLimit)) {
-        //     return null;
-        // }
         if (
-            $purchaseLimit === null
-            || ! $input->amount->isGreaterThan($purchaseLimit)
+            $purchaseLimit instanceof Money
+            && $input->amount->isGreaterThan($purchaseLimit)
         ) {
-            return null;
+            return new AuthorizationResult(
+                decision: AuthorizationDecisionEnum::DECLINED,
+                reason: AuthorizationReasonEnum::PURCHASE_LIMIT_EXCEEDED,
+                authorization: null,
+            );
         }
+
+        return null;
+    }
+
+    private function persistDeclinedAuthorization(
+        AuthorizeTransactionInput $input,
+        Card $card,
+        User $user,
+        AuthorizationResult $result,
+    ): AuthorizationResult {
+        $authorization = new Authorization(
+            id: (string) Str::uuid(),
+            externalId: $input->externalId,
+            cardId: $card->id(),
+            companyId: $user->companyId(),
+            amount: $input->amount,
+            currency: $input->currency,
+            mcc: $input->mcc,
+            decision: AuthorizationDecisionEnum::DECLINED,
+            reason: $result->reason,
+            merchantName: $input->merchant->name,
+            merchantCity: $input->merchant->city,
+            merchantCountry: $input->merchant->country,
+            occurredAt: $input->occurredAt,
+        );
+
+        $this->authorizationRepository->save($authorization);
 
         return new AuthorizationResult(
             decision: AuthorizationDecisionEnum::DECLINED,
-            reason: AuthorizationReasonEnum::PURCHASE_LIMIT_EXCEEDED,
-            authorization: null,
+            reason: $authorization->reason(),
+            authorization: $authorization,
         );
     }
 
@@ -269,7 +300,7 @@ final class AuthorizeTransaction
         User $user,
     ): Authorization {
         return new Authorization(
-            id: (string) \Illuminate\Support\Str::uuid(),
+            id: (string) Str::uuid(),
             externalId: $input->externalId,
             cardId: $card->id(),
             companyId: $user->companyId(),
@@ -289,8 +320,8 @@ final class AuthorizeTransaction
         // return $authorization;
     }
 
-    private function isMccBlocked(string $mcc): bool
+    private function isMccBlocked(Card $card, string $mcc): bool
     {
-        return $mcc === '7995';
+        return $card->isMccBlocked($mcc);
     }
 }

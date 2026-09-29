@@ -92,6 +92,31 @@ final class TransactionEloquentRepository implements TransactionRepository
         });
     }
 
+    /**
+     * @return array<int, array{
+     *     reference: string,
+     *     amount_cents: int,
+     *     occurred_at: string
+     * }>
+     */
+    public function statementForCard(
+        int $cardId,
+        string $month,
+    ): array {
+        return TransactionModel::query()
+            ->where('card_id', $cardId)
+            ->where('limit_month', $month.'-01')
+            ->orderBy('occurred_at')
+            ->get()
+            ->map(static fn (TransactionModel $transaction): array => [
+                'reference' => $transaction->reference,
+                'amount_cents' => $transaction->amount_cents,
+                'occurred_at' => $transaction->occurred_at->toISOString(),
+                'type' => $transaction->type,
+            ])
+            ->all();
+    }
+
     public function capturedAmountForAuthorization(string $authorizationId): Money
     {
         $amount = TransactionModel::query()

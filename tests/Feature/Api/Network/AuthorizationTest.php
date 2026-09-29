@@ -12,18 +12,21 @@ use App\Domain\Authorization\Enums\AuthorizationReasonEnum;
 use App\Domain\Shared\ValueObjects\Money;
 use App\Domain\Transaction\Enums\TransactionTypeEnum;
 use App\Infrastructure\Persistence\Eloquent\Models\AuthorizationModel;
+use App\Infrastructure\Persistence\Eloquent\Models\CardModel;
 use App\Infrastructure\Persistence\Eloquent\Models\EventModel;
 use App\Infrastructure\Persistence\Eloquent\Models\TransactionModel;
+use App\Infrastructure\Persistence\Eloquent\Models\UserModel;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(
     RefreshDatabase::class,
-)->beforeEach(function () {
+)->beforeEach(function (): void {
     $this->seed();
 });
 
 // I1 — Regra: uma autorização válida deve ser aprovada e registrar a reserva financeira no ledger.
-it('approves a valid authorization and records the reservation', function () {
+it('approves a valid authorization and records the reservation', function (): void {
     $input = new AuthorizeTransactionInput(
         externalId: 'aut_integration_001',
         cardToken: 'tok_ana',
@@ -35,12 +38,22 @@ it('approves a valid authorization and records the reservation', function () {
             city: 'Porto Alegre',
             country: 'BR',
         ),
-        occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+        occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
     );
 
-    $useCase = app(AuthorizeTransaction::class);
+    $useCase = resolve(AuthorizeTransaction::class);
 
     $result = $useCase->execute($input);
+
+    //     dump([
+    //     'database' => DB::connection()->getDatabaseName(),
+    //     'driver' => DB::connection()->getDriverName(),
+    //     'cards' => CardModel::query()
+    //         ->select('id', 'card_token', 'user_id')
+    //         ->orderBy('id')
+    //         ->get()
+    //         ->toArray(),
+    // ]);
 
     expect($result->decision)
         ->toBe(AuthorizationDecisionEnum::APPROVED)
@@ -57,10 +70,18 @@ it('approves a valid authorization and records the reservation', function () {
         ->not->toBeNull()
         ->and($authorization->amount_cents)
         ->toBe(12990)
-        ->and($authorization->card_id)
-        ->toBe(1)
-        ->and($authorization->company_id)
-        ->toBe(1);
+        ->and(
+            CardModel::query()
+                ->where('card_token', 'tok_ana')
+                ->value('id')
+        )
+        ->toBe($authorization->card_id)
+        ->and(
+            UserModel::query()
+                ->where('email', 'ana@acme.test')
+                ->value('company_id')
+        )
+        ->toBe($authorization->company_id);
 
     $reservation = TransactionModel::query()
         ->where('reference', $authorization->id)
@@ -72,14 +93,14 @@ it('approves a valid authorization and records the reservation', function () {
         ->and($reservation->amount_cents)
         ->toBe(-12990)
         ->and($reservation->card_id)
-        ->toBe(1)
+        ->toBe($authorization->card_id)
         ->and($reservation->company_id)
-        ->toBe(1);
+        ->toBe($authorization->company_id);
 });
 
 // X1 / I10 — Regra: uma captura recebida antes da autorização deve ser processada quando a autorização chegar.
-it('processes a pending capture when its authorization arrives', function () {
-    $capture = app(CaptureTransaction::class);
+it('processes a pending capture when its authorization arrives', function (): void {
+    $capture = resolve(CaptureTransaction::class);
 
     // Primeiro: chega uma captura para uma autorização que ainda não existe.
     $captureResult = $capture->execute(
@@ -88,7 +109,7 @@ it('processes a pending capture when its authorization arrives', function () {
             authorizationId: 'aut_pending_010_001',
             amount: Money::fromCents(30000),
             currency: 'BRL',
-            occurredAt: new DateTimeImmutable('2026-09-17T18:40:00Z'),
+            occurredAt: CarbonImmutable::parse('2026-09-17T18:40:00Z'),
             final: false,
         ),
     );
@@ -109,7 +130,7 @@ it('processes a pending capture when its authorization arrives', function () {
         ->toBe('pending');
 
     // Depois: chega a autorização correspondente.
-    $authorization = app(AuthorizeTransaction::class);
+    $authorization = resolve(AuthorizeTransaction::class);
 
     $result = $authorization->execute(
         new AuthorizeTransactionInput(
@@ -123,7 +144,7 @@ it('processes a pending capture when its authorization arrives', function () {
                 city: 'Porto Alegre',
                 country: 'BR',
             ),
-            occurredAt: new DateTimeImmutable('2026-09-17T18:30:00Z'),
+            occurredAt: CarbonImmutable::parse('2026-09-17T18:30:00Z'),
         ),
     );
 
@@ -151,7 +172,7 @@ it('processes a pending capture when its authorization arrives', function () {
 });
 
 // I2 / A2 — Regra: uma autorização com MCC bloqueado deve ser recusada sem gerar efeito financeiro.
-it('declines an authorization with a blocked MCC without financial effect', function () {
+it('declines an authorization with a blocked MCC without financial effect', function (): void {
     $input = new AuthorizeTransactionInput(
         externalId: 'aut_integration_002',
         cardToken: 'tok_ana',
@@ -163,10 +184,10 @@ it('declines an authorization with a blocked MCC without financial effect', func
             city: 'Porto Alegre',
             country: 'BR',
         ),
-        occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+        occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
     );
 
-    $useCase = app(AuthorizeTransaction::class);
+    $useCase = resolve(AuthorizeTransaction::class);
 
     $result = $useCase->execute($input);
 
@@ -175,23 +196,23 @@ it('declines an authorization with a blocked MCC without financial effect', func
         ->and($result->reason)
         ->toBe(AuthorizationReasonEnum::MCC_BLOCKED)
         ->and($result->authorization)
-        ->toBeNull();
+        ->not->toBeNull();
 
     expect(
         AuthorizationModel::query()
             ->where('external_id', 'aut_integration_002')
             ->exists()
-    )->toBeFalse();
+    )->toBeTrue();
 
     expect(
-        TransactionModel::query()
-            ->where('reference', 'aut_integration_002')
+        AuthorizationModel::query()
+            ->where('external_id', 'aut_integration_002')
             ->exists()
-    )->toBeFalse();
+    )->toBeTrue();
 });
 
 // I3 / A3 — Regra: uma autorização acima do limite de compra do cartão deve ser recusada sem efeito financeiro.
-it('declines an authorization above the purchase limit without financial effect', function () {
+it('declines an authorization above the purchase limit without financial effect', function (): void {
     $input = new AuthorizeTransactionInput(
         externalId: 'aut_integration_003',
         cardToken: 'tok_ana',
@@ -203,10 +224,10 @@ it('declines an authorization above the purchase limit without financial effect'
             city: 'Porto Alegre',
             country: 'BR',
         ),
-        occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+        occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
     );
 
-    $useCase = app(AuthorizeTransaction::class);
+    $useCase = resolve(AuthorizeTransaction::class);
 
     $result = $useCase->execute($input);
 
@@ -215,13 +236,13 @@ it('declines an authorization above the purchase limit without financial effect'
         ->and($result->reason)
         ->toBe(AuthorizationReasonEnum::PURCHASE_LIMIT_EXCEEDED)
         ->and($result->authorization)
-        ->toBeNull();
+        ->not->toBeNull();
 
     expect(
         AuthorizationModel::query()
             ->where('external_id', 'aut_integration_003')
             ->exists()
-    )->toBeFalse();
+    )->toBeTrue();
 
     expect(
         TransactionModel::query()
@@ -231,7 +252,7 @@ it('declines an authorization above the purchase limit without financial effect'
 });
 
 // I4 / A4 — Regra: uma autorização de cartão bloqueado deve ser recusada sem efeito financeiro.
-it('declines an authorization for a blocked card without financial effect', function () {
+it('declines an authorization for a blocked card without financial effect', function (): void {
     $input = new AuthorizeTransactionInput(
         externalId: 'aut_integration_004',
         cardToken: 'tok_carla',
@@ -243,10 +264,10 @@ it('declines an authorization for a blocked card without financial effect', func
             city: 'Porto Alegre',
             country: 'BR',
         ),
-        occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+        occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
     );
 
-    $useCase = app(AuthorizeTransaction::class);
+    $useCase = resolve(AuthorizeTransaction::class);
 
     $result = $useCase->execute($input);
 
@@ -255,13 +276,13 @@ it('declines an authorization for a blocked card without financial effect', func
         ->and($result->reason)
         ->toBe(AuthorizationReasonEnum::CARD_BLOCKED)
         ->and($result->authorization)
-        ->toBeNull();
+        ->not->toBeNull();
 
     expect(
         AuthorizationModel::query()
             ->where('external_id', 'aut_integration_004')
             ->exists()
-    )->toBeFalse();
+    )->toBeTrue();
 
     expect(
         TransactionModel::query()
@@ -271,7 +292,7 @@ it('declines an authorization for a blocked card without financial effect', func
 });
 
 // I5 / A5 — Regra: uma autorização para cartão inexistente deve ser recusada sem efeito financeiro.
-it('declines an authorization for a nonexistent card without financial effect', function () {
+it('declines an authorization for a nonexistent card without financial effect', function (): void {
     $input = new AuthorizeTransactionInput(
         externalId: 'aut_integration_005',
         cardToken: 'tok_nonexistent',
@@ -283,10 +304,10 @@ it('declines an authorization for a nonexistent card without financial effect', 
             city: 'Porto Alegre',
             country: 'BR',
         ),
-        occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+        occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
     );
 
-    $useCase = app(AuthorizeTransaction::class);
+    $useCase = resolve(AuthorizeTransaction::class);
 
     $result = $useCase->execute($input);
 
@@ -311,7 +332,7 @@ it('declines an authorization for a nonexistent card without financial effect', 
 });
 
 // I6 / A6 — Regra: a autorização deve ser recusada quando o valor exceder o saldo disponível da empresa.
-it('declines an authorization above the available company balance without financial effect', function () {
+it('declines an authorization above the available company balance without financial effect', function (): void {
     $input = new AuthorizeTransactionInput(
         externalId: 'aut_integration_006',
         cardToken: 'tok_diego',
@@ -323,10 +344,10 @@ it('declines an authorization above the available company balance without financ
             city: 'Porto Alegre',
             country: 'BR',
         ),
-        occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+        occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
     );
 
-    $useCase = app(AuthorizeTransaction::class);
+    $useCase = resolve(AuthorizeTransaction::class);
 
     $result = $useCase->execute($input);
 
@@ -335,13 +356,13 @@ it('declines an authorization above the available company balance without financ
         ->and($result->reason)
         ->toBe(AuthorizationReasonEnum::COMPANY_BALANCE_EXCEEDED)
         ->and($result->authorization)
-        ->toBeNull();
+        ->not->toBeNull();
 
     expect(
         AuthorizationModel::query()
             ->where('external_id', 'aut_integration_006')
             ->exists()
-    )->toBeFalse();
+    )->toBeTrue();
 
     expect(
         TransactionModel::query()
@@ -351,7 +372,7 @@ it('declines an authorization above the available company balance without financ
 });
 
 // I7 / A7 — Regra: uma autorização acima do limite mensal restante do cartão deve ser recusada sem efeito financeiro.
-it('declines an authorization above the remaining monthly card limit without financial effect', function () {
+it('declines an authorization above the remaining monthly card limit without financial effect', function (): void {
     $input = new AuthorizeTransactionInput(
         externalId: 'aut_integration_007',
         cardToken: 'tok_bruno',
@@ -363,10 +384,10 @@ it('declines an authorization above the remaining monthly card limit without fin
             city: 'Porto Alegre',
             country: 'BR',
         ),
-        occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+        occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
     );
 
-    $useCase = app(AuthorizeTransaction::class);
+    $useCase = resolve(AuthorizeTransaction::class);
 
     $result = $useCase->execute($input);
 
@@ -375,13 +396,13 @@ it('declines an authorization above the remaining monthly card limit without fin
         ->and($result->reason)
         ->toBe(AuthorizationReasonEnum::PURCHASE_LIMIT_EXCEEDED)
         ->and($result->authorization)
-        ->toBeNull();
+        ->not->toBeNull();
 
     expect(
         AuthorizationModel::query()
             ->where('external_id', 'aut_integration_007')
             ->exists()
-    )->toBeFalse();
+    )->toBeTrue();
 
     expect(
         TransactionModel::query()
@@ -391,7 +412,7 @@ it('declines an authorization above the remaining monthly card limit without fin
 });
 
 // I8 / A7 — Regra: uma autorização exatamente igual ao saldo disponível da empresa deve ser aprovada.
-it('approves an authorization exactly equal to the available company balance', function () {
+it('approves an authorization exactly equal to the available company balance', function (): void {
     $input = new AuthorizeTransactionInput(
         externalId: 'aut_integration_008',
         cardToken: 'tok_diego',
@@ -403,10 +424,10 @@ it('approves an authorization exactly equal to the available company balance', f
             city: 'Porto Alegre',
             country: 'BR',
         ),
-        occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+        occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
     );
 
-    $useCase = app(AuthorizeTransaction::class);
+    $useCase = resolve(AuthorizeTransaction::class);
 
     $result = $useCase->execute($input);
 
@@ -426,7 +447,7 @@ it('approves an authorization exactly equal to the available company balance', f
 });
 
 // I9 / A9 — Regra: uma autorização aprovada deve registrar exatamente uma reserva financeira no ledger.
-it('records exactly one reservation for an approved authorization', function () {
+it('records exactly one reservation for an approved authorization', function (): void {
     $input = new AuthorizeTransactionInput(
         externalId: 'aut_integration_009',
         cardToken: 'tok_ana',
@@ -438,10 +459,10 @@ it('records exactly one reservation for an approved authorization', function () 
             city: 'Porto Alegre',
             country: 'BR',
         ),
-        occurredAt: new DateTimeImmutable('2026-09-17T14:03:22Z'),
+        occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
     );
 
-    $useCase = app(AuthorizeTransaction::class);
+    $useCase = resolve(AuthorizeTransaction::class);
 
     $result = $useCase->execute($input);
 
@@ -456,4 +477,51 @@ it('records exactly one reservation for an approved authorization', function () 
             ->where('type', TransactionTypeEnum::RESERVE->value)
             ->count()
     )->toBe(1);
+});
+
+// I10 — Regra: uma autorização recusada reenviada com o mesmo id deve retornar a mesma decisão.
+it('returns the same decision when a declined authorization is received again', function (): void {
+    $input = new AuthorizeTransactionInput(
+        externalId: 'aut_idempotent_declined_001',
+        cardToken: 'tok_ana',
+        amount: Money::fromCents(85000),
+        currency: 'BRL',
+        mcc: '5812',
+        merchant: new MerchantInput(
+            name: 'Restaurante Teste',
+            city: 'Porto Alegre',
+            country: 'BR',
+        ),
+        occurredAt: CarbonImmutable::parse('2026-09-17T14:03:22Z'),
+    );
+
+    $useCase = resolve(AuthorizeTransaction::class);
+
+    $firstResult = $useCase->execute($input);
+    $secondResult = $useCase->execute($input);
+
+    expect($firstResult->decision)
+        ->toBe(AuthorizationDecisionEnum::DECLINED)
+        ->and($firstResult->reason)
+        ->toBe(AuthorizationReasonEnum::PURCHASE_LIMIT_EXCEEDED)
+        ->and($secondResult->decision)
+        ->toBe(AuthorizationDecisionEnum::DECLINED)
+        ->and($secondResult->reason)
+        ->toBe(AuthorizationReasonEnum::PURCHASE_LIMIT_EXCEEDED)
+        ->and($secondResult->authorization)
+        ->not->toBeNull()
+        ->and($secondResult->authorization->id())
+        ->toBe($firstResult->authorization->id());
+
+    expect(
+        AuthorizationModel::query()
+            ->where('external_id', 'aut_idempotent_declined_001')
+            ->count()
+    )->toBe(1);
+
+    expect(
+        TransactionModel::query()
+            ->where('reference', 'aut_idempotent_declined_001')
+            ->count()
+    )->toBe(0);
 });

@@ -13,7 +13,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('authorizations', function (Blueprint $table) {
+        Schema::create('authorizations', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->string('external_id')->unique();
 

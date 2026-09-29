@@ -14,11 +14,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-final class EventController
+final readonly class EventController
 {
     public function __construct(
-        private readonly CaptureTransaction $captureTransaction,
-        private readonly CancelTransaction $cancelTransaction,
+        private CaptureTransaction $captureTransaction,
+        private CancelTransaction $cancelTransaction,
     ) {}
 
     public function store(Request $request): JsonResponse

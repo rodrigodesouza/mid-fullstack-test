@@ -19,13 +19,19 @@ final class CardModel extends Model
         'status',
     ];
 
-    protected $casts = [
-        'monthly_limit_cents' => 'integer',
-        'purchase_limit_cents' => 'integer',
-    ];
-
+    /**
+     * @return HasMany<CardMccRuleModel, $this>
+     */
     public function mccRules(): HasMany
     {
         return $this->hasMany(CardMccRuleModel::class, 'card_id');
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'monthly_limit_cents' => 'integer',
+            'purchase_limit_cents' => 'integer',
+        ];
     }
 }

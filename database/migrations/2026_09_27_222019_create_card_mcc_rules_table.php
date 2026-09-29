@@ -13,7 +13,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('card_mcc_rules', function (Blueprint $table) {
+        Schema::create('card_mcc_rules', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('card_id')->constrained('cards')->cascadeOnDelete();
             $table->string('mcc', 4);

@@ -16,6 +16,7 @@ final class CardEloquentRepository implements CardRepository
     public function findByToken(string $token): ?Card
     {
         $card = CardModel::query()
+            ->with('mccRules')
             ->where('card_token', $token)
             ->first();
 
@@ -31,6 +32,16 @@ final class CardEloquentRepository implements CardRepository
             status: CardStatusEnum::from($card->status),
             createdAt: new DateTimeImmutable($card->created_at->toISOString()),
             updatedAt: new DateTimeImmutable($card->updated_at->toISOString()),
+            purchaseLimitCents: $card->purchase_limit_cents !== null
+                ? Money::fromCents($card->purchase_limit_cents)
+                : null,
+            mccRules: $card->mccRules
+                ->map(static fn ($rule): array => [
+                    'mcc' => $rule->mcc,
+                    'rule' => $rule->rule,
+                    'tolerance_percent' => $rule->tolerance_percent,
+                ])
+                ->all(),
         );
     }
 }
