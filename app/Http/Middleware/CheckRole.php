@@ -17,9 +17,7 @@ final class CheckRole
     ): Response {
         $user = $request->user();
 
-        if (! $user || $user->role !== $role) {
-            abort(403);
-        }
+        abort_if(! $user || $user->role !== $role, 403);
 
         return $next($request);
     }

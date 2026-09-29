@@ -106,7 +106,7 @@ final class TransactionEloquentRepository implements TransactionRepository
         return TransactionModel::query()
             ->where('card_id', $cardId)
             ->where('limit_month', $month.'-01')
-            ->orderBy('occurred_at')
+            ->oldest('occurred_at')
             ->get()
             ->map(static fn (TransactionModel $transaction): array => [
                 'reference' => $transaction->reference,

@@ -11,8 +11,10 @@ use Livewire\Component;
 
 final class MyCard extends Component
 {
+    /** @var array<string, mixed> */
     public array $available = [];
 
+    /** @var array<string, mixed> */
     public array $statement = [];
 
     public function mount(): void
@@ -22,8 +24,8 @@ final class MyCard extends Component
 
     public function loadCard(): void
     {
-        $availableCard = app(GetAvailableCard::class);
-        $statement = app(GetCardStatement::class);
+        $availableCard = resolve(GetAvailableCard::class);
+        $statement = resolve(GetCardStatement::class);
 
         $card = CardModel::query()
             ->where('user_id', auth()->id())

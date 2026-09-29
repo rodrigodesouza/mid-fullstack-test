@@ -75,7 +75,7 @@ final class Card
 
     public function isMccBlocked(string $mcc): bool
     {
-        return array_any($this->mccRules, fn ($rule) => ($rule['mcc'] ?? null) === $mcc
+        return array_any($this->mccRules, fn (array $rule) => ($rule['mcc'] ?? null) === $mcc
         && ($rule['rule'] ?? null) === CardMccRuleEnum::BLOCKED->value);
     }
 
